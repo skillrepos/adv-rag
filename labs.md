@@ -15,9 +15,9 @@
 
 <br><br>
 
-# Lab 1 - AI vs ML vs Generative AI vs Data Science: Understanding the Differences Through Practice**
+# Lab 1 - AI vs ML vs Generative AI vs Data Science: Understanding the Differences Through Practice
 
-**Purpose: Learn the key differences between Data Science, Artificial Intelligence (AI), Machine Learning (ML), Deep Learning (DL), and Generative AI by seeing how each discipline approaches the same business problem. This hands-on lab uses practical examples and a local language model to demonstrate when and why you'd use each approach..**
+**Purpose: Learn the key differences between Data Science, Artificial Intelligence (AI), Machine Learning (ML), Deep Learning (DL), and Generative AI by seeing how each discipline approaches the same business problem. This hands-on lab uses practical examples and a local language model to demonstrate when and why you'd use each approach.
 
 <br><br>
 
@@ -77,7 +77,7 @@ Provide statistical summary in under 100 words."
 
 ## 2. Traditional AI Approach - "Apply Logic Rules"
 
-**Traditional AI** (also called symbolic AI or rule-based AI) uses human-defined rules and logic. It answers: **"What should we do based on predefined rules?"**
+**Traditional AI** (also called symbolic AI or rule-based AI) uses human-defined rules and logic. It answers: **"What should we do based on predefined rules?"
 
 **Set color to Magenta for Traditional AI:**
 ```bash
@@ -110,7 +110,7 @@ Create 5 specific rules for customer classification and recommended actions. Be 
 
 ## 3. Machine Learning Approach - "What Will Happen?"
 
-**Machine Learning** learns patterns from data automatically and makes predictions. It answers: **"What is likely to happen next?"**
+**Machine Learning** learns patterns from data automatically and makes predictions. It answers: **"What is likely to happen next?"
 
 **Set color to Green for Machine Learning:**
 ```bash
@@ -141,7 +141,7 @@ Keep explanation under 100 words, focus on 'learning from patterns' vs 'followin
 
 ## 4: Deep Learning Approach - "Understand Complex Patterns"
 
-**Deep Learning** is a subset of ML using neural networks with many layers. It excels at finding complex patterns in unstructured data. It answers: **"Can you understand this complex, unstructured information?"**
+**Deep Learning** is a subset of ML using neural networks with many layers. It excels at finding complex patterns in unstructured data. It answers: **"Can you understand this complex, unstructured information?"
 
 **Set color to Cyan for Deep Learning:**
 ```bash
@@ -300,7 +300,7 @@ Try these challenges:
 
 # Lab #2 - Prompt Engineering: Advanced Techniques for Product Review Analysis**
 
-**Purpose: Learn how different prompting strategies dramatically affect model accuracy and consistency by analyzing product reviews. This lab demonstrates key prompt engineering techniques including role-based prompting, chain-of-thought reasoning, structured templates, and meta-prompting for real-world sentiment analysis.**
+**Purpose: Learn how different prompting strategies dramatically affect model accuracy and consistency by analyzing product reviews. This lab demonstrates key prompt engineering techniques including role-based prompting, chain-of-thought reasoning, structured templates, and meta-prompting for real-world sentiment analysis.
 
 <br><br>
 
@@ -589,7 +589,123 @@ python simple_ollama.py
 </br></br>
 
 
+# Lab #4 - Creating Your Own Intelligence Br**
 
+**Purpose: Use AI to help keep you up-to-date on AI.**
+
+<br><br>
+
+## Extended Prompt
+
+```
+"Please provide me with a structured AI intelligence briefing covering the last 7-14 days. Format your response as an executive briefing with the following sections:
+1. CRITICAL DEVELOPMENTS (What I Must Know)
+
+Major AI model releases or significant updates
+Regulatory changes or policy announcements
+Security/safety incidents or concerns
+Industry game-changers or disruptions
+
+2. TECHNICAL ADVANCES (What's New)
+
+New capabilities or benchmarks achieved
+Research breakthroughs (summarize in 1-2 sentences each)
+Open source releases worth noting
+Performance improvements in existing tools
+
+3. BUSINESS IMPACT (What Matters for Work)
+
+New enterprise AI tools or features
+Case studies of successful AI implementations
+ROI data or efficiency metrics published
+Vendor announcements (Microsoft, Google, AWS, etc.)
+
+4. PRACTICAL APPLICATIONS (What I Can Use Now)
+
+New tools I can try immediately (with links)
+Prompt engineering techniques or tips discovered
+Workflow improvements or automations
+Cost-effective AI solutions released
+
+5. INDUSTRY MOVEMENTS (Market Dynamics)
+
+Major funding rounds or acquisitions
+Partnership announcements
+Competitive landscape shifts
+Job market or skill demand changes
+
+6. LOOKING AHEAD (What's Coming)
+
+Upcoming releases or announcements to watch
+Scheduled conferences or events
+Predicted trends gaining momentum
+Emerging concerns or opportunities
+
+For each item, please:
+
+Include the DATE it was announced/published
+Provide a direct LINK to the source
+Keep descriptions to 2-3 sentences max
+Bold the most important items I shouldn't miss
+Flag anything requiring immediate action with 🚨
+
+End with a 'THREE THINGS TO DO THIS WEEK' section with specific, actionable recommendations based on the updates.
+Focus on practical, business-relevant developments over purely academic research. Prioritize information from the last 14 days, and clearly mark anything older as 'BACKGROUND' if it's essential context."
+
+```
+
+<br><br>
+
+## 1: Try out the simple one-line prompt
+
+Open claude.ai, chatgpt.com, gemini.google.com or your preferred AI assistant and copy and paste the simplified prompt below (substituting in your role and industry in the appropriate places):
+
+```
+What are the 5 most important AI developments from the last week that a [YOUR ROLE] in [YOUR INDUSTRY] needs to know, with links to learn more?
+```
+<br><br>
+
+## 2: Review the output and note what is useful/not useful.
+
+<br><br>
+
+## 3: Try out the extended prompt.
+
+Copy and paste the extended prompt from the start of the lab into the AI assistant. 
+
+<br><br>
+
+## 4: Review the output and notice differences and details vs the simpler prompt. 
+
+<br><br>
+
+## 5: Run the extended prompt again but add the appropriate section (or create your own) for your role.
+
+For Technical Practitioners
+```
+Include code examples, GitHub repos, and technical implementation details. Focus on tools I can integrate into development workflows.
+```
+
+For Business Leaders
+```
+Emphasize ROI metrics, competitive advantages, and strategic implications. Include cost comparisons and vendor assessments.
+```
+For Specific Industries
+```
+Filter for developments specifically relevant to [YOUR INDUSTRY: healthcare/finance/retail/etc.]. Include industry-specific use cases and compliance considerations.
+```
+
+## 6: Review the output with the additional details.
+
+<br><br>
+
+## 7: What would you change/add/delete to make the results better for you? Try out any changes you want to make to fine-tune and make this most useful.
+
+
+<p align="center">
+<b>[END OF LAB]</b>
+</p>
+</br></br>
 
 
 <p align="center">

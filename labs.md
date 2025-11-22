@@ -418,7 +418,7 @@ cd rag
 
 2. We have several data files that we'll be using that are for a ficticious company. The files are located in the *rag/knowledge_base_pdfs* directory. [knowledge base pdfs](./rag/knowledge_base_pdfs) You can browse them via the explorer view. Here's a [direct link](./rag/knowledge_base_pdfs/OmniTech_Returns_Policy_2024.pdf) to an example one if you want to open it and take a look at it.
 
-![PDF data file](./images/31ai23.png?raw=true "PDF data file") 
+![PDF data file](./images/aia-1-41.png?raw=true "PDF data file") 
 
 <br><br>
 
@@ -497,116 +497,230 @@ python ../tools/index_pdfs.py
 </br></br>
 
 
-**Lab 7: Building a Basic RAG System**
+**Lab 7: Building a Complete RAG System**
 
-**Purpose: In this lab, we'll create a basic RAG (Retrieval-Augmented Generation) system that can read PDF documents, store them in a vector database, and retrieve relevant information based on queries.**
+**Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that retrieves relevant context from our vector database and uses an LLM to generate intelligent, grounded answers.**
 
-1. As we did before, we'll be using the side-by-side editor merge approach in this lab to build out the code with our rag functionality.
+1. You should still be in the *rag* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 6 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers.
 
-2. First, let's navigate to our *rag* directory where we have the starter file and some utility files.
-
-```
-cd /workspaces/aia-day1/rag
-```
 <br><br>
 
+2. Before we start, we need to ensure Ollama is running with the llama3.2 model. In a NEW terminal tab (click the + icon in the terminal), start Ollama:
 
-3. Now, let's examine our basic RAG implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
+```
+ollama serve
+```
+
+Leave this terminal running. Then in your original terminal, verify the model is available:
+
+```
+ollama pull llama3.2
+```
+
+<br><br>
+
+3. Now let's examine our complete RAG implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
 
 ```
 code -d ../extra/rag_complete.txt rag_code.py
 ```
 <br><br>
 
-4. Once you have the diff view open, merge the code segments from the complete file (left side) into the skeleton file (right side) by clicking the arrow pointing right in the middle bar for each difference. Start with the imports section, then the document loading function, and finally the search functionality.
+4. Once you have the diff view open, take a moment to look at the structure. Notice the three main methods: `retrieve()` for finding chunks, `build_prompt()` for augmenting with context, and `generate()` for calling the LLM. These are the three steps of RAG!
+
+<br><br>
+
+5. Now merge the code segments from the complete file (left side) into the skeleton file (right side) by clicking the arrow pointing right in the middle bar for each difference. Start with the imports section at the top, then work your way down through the class methods.
 
 ![Side-by-side merge](../images/merge-example.png)
 <br><br>
 
-5. After merging all the changes, close the diff view by clicking the "X" in the tab. Now let's test our basic RAG system:
+6. After merging all the changes, close the diff view by clicking the "X" in the tab. Save the file if prompted (CTRL/CMD + S).
+
+<br><br>
+
+7. Now let's run our complete RAG system:
 
 ```
 python rag_code.py
 ```
+
+The system will connect to the vector database we created in Lab 6 and check if Ollama is running.
+
 <br><br>
 
-6. The system should load the PDF documents and create the vector database. Let's now create a simple test script to query the knowledge base. Create a new file:
+8. You should see knowledge base statistics showing how many chunks are indexed, and a check that Ollama is running with the llama3.2 model. If you see any errors about Ollama not running, go back to step 2.
 
-```
-code rag_test.py
-```
 <br><br>
 
-7. Paste the following code into the rag_test.py file:
+9. Now you'll be at a prompt to ask questions. Try this first question:
 
-```python
-from rag_skeleton import KnowledgeBase
-
-# Initialize the knowledge base
-kb = KnowledgeBase()
-
-# Test queries
-queries = [
-    "How do I return a product?",
-    "What are the shipping options?",
-    "How can I reset my password?"
-]
-
-print("Testing RAG System\n" + "="*50)
-for query in queries:
-    print(f"\nQuery: {query}")
-    results = kb.search(query, max_results=2)
-
-    for i, result in enumerate(results, 1):
-        print(f"Result {i}: {result['content'][:200]}...")
-        print(f"Category: {result['category']}, Score: {result['score']:.2f}")
 ```
+How can I return a product?
+```
+
+Watch what happens - the system will show you the three RAG steps in the logs:
+- **[RETRIEVE]** Finding relevant chunks in the vector database
+- **[AUGMENT]** Building a prompt with context
+- **[GENERATE]** Querying Llama 3.2 to generate an answer
+
 <br><br>
 
-8. Save the file (CTRL/CMD + S) and run the test:
+10. After a few seconds, you'll see an ANSWER section with the LLM-generated response, followed by a SOURCES section showing which PDFs and pages were used. Notice how the answer is much more complete and natural than just showing search results!
 
-```
-python rag_test.py
-```
 <br><br>
 
-9. You should see search results for each query. Notice how the system finds relevant documents based on the query content. Let's add some performance monitoring to our RAG system. Use the diff tool again:
+11. Try a few more questions to see RAG in action:
 
 ```
-code -d ../extra/rag_enhanced.txt rag_code.py
+What are the shipping costs?
+How do I reset my password?
+What should I do if my device won't turn on?
 ```
+
+For each question, notice how the system retrieves relevant chunks and generates a complete answer based on that context.
+
 <br><br>
 
-10. Merge in the enhancements that add timing information and better logging. After merging, close the diff view.
-<br><br>
-
-11. Now let's test the enhanced version with a simple benchmark:
+12. Now try asking a question that's NOT in the PDFs to see how RAG handles it:
 
 ```
-python benchmark_rag.py
+What's the CEO's favorite color?
 ```
+
+Notice how the system should say it doesn't have that information (rather than making something up). This is the "grounding" benefit of RAG - answers are based on actual documents.
+
 <br><br>
 
-12. You should see timing information for document loading and search operations. This gives us a baseline for our RAG system performance.
+13. When you're done experimenting, type `quit` to exit the system.
 
-![RAG Performance](../images/rag-performance.png)
 <br><br>
 
-13. Finally, let's verify that our knowledge base persists correctly. Run the persistence test:
+14. (Optional) If you want to see the code in action, open the rag_code.py file and look at the three key methods:
+- Lines 94-156: `retrieve()` - semantic search in ChromaDB
+- Lines 158-206: `build_prompt()` - combining context with the question
+- Lines 208-268: `generate()` - calling Ollama's Llama 3.2 model
 
-```
-python test_persistence.py
-```
+This is the complete RAG pipeline: **Retrieve → Augment → Generate**
+
 <br><br>
-
-14. The test should show that documents are correctly stored and can be retrieved even after restarting the system.
-
 
 **Key Takeaways:**
-- You've built a basic RAG system that can load PDF documents
-- The system uses ChromaDB as a vector database for similarity search
-- Documents are chunked and embedded for efficient retrieval
-- The system can find relevant information based on semantic similarity
+- You've built a TRUE RAG system that combines vector search with LLM generation
+- RAG has three steps: Retrieve relevant chunks, Augment the prompt with context, Generate answers with an LLM
+- The system uses ChromaDB for semantic search and Ollama/Llama 3.2 for generation
+- RAG answers are grounded in your documents - reducing hallucination compared to pure LLM queries
+- The system can cite sources, showing which documents and pages were used
+
+<p align="center">
+<b>[END OF LAB]</b>
+</p>
+</br></br>
+
+**Lab 8: Making RAG Answer Questions Correctly**
+
+**Purpose: In this lab, we'll learn how to control RAG quality by tuning retrieval settings, improving prompts, and understanding limitations.**
+
+1. You should still be in the *rag* subdirectory. We're going to experiment with the RAG system we just built to understand how different settings affect answer quality. First, let's run the complete RAG system and ask it a question.
+
+```
+python ../extra/rag_complete.txt
+```
+<br><br>
+
+2. After the system starts and shows the knowledge base statistics, try asking this question at the prompt:
+
+```
+How can I return a product?
+```
+
+Notice the answer quality and the sources it used. How complete is the answer? Does it have enough context?
+
+<br><br>
+
+3. Now let's see what happens when we retrieve fewer chunks. Stop the program (CTRL+C) and open the file in the editor:
+
+```
+code ../extra/rag_complete.txt
+```
+<br><br>
+
+4. Find line 465 (in the interactive loop section) where it says `result = rag.query(question, max_context_chunks=3)`. Change the `3` to `1` and save the file (CTRL/CMD + S).
+
+<br><br>
+
+5. Run the RAG system again and ask the same question:
+
+```
+python ../extra/rag_complete.txt
+```
+
+Then enter: `How can I return a product?`
+
+Notice how the answer is less complete with only 1 chunk of context. The system doesn't have enough information to give a full answer.
+
+<br><br>
+
+6. Stop the program again (CTRL+C) and change line 465 to use `max_context_chunks=10` instead. Save and run again with the same question. Notice how the answer might be longer but potentially more confusing with too much context.
+
+<br><br>
+
+7. Now let's improve the prompt to make RAG more honest about uncertainty. Change `max_context_chunks` back to `3`, then find the prompt template around lines 188-203. Look at the current instructions to the LLM.
+
+<br><br>
+
+8. Add this new instruction after line 201 (after the "Keep your answer concise" line):
+
+```
+- If you're not completely confident in your answer, say "Based on the documentation..." to indicate uncertainty
+```
+
+Save the file (CTRL/CMD + S).
+
+<br><br>
+
+9. Run the RAG system again and this time ask a borderline question that might not have a clear answer:
+
+```
+python ../extra/rag_complete.txt
+```
+
+Then enter: `Do you ship to Antarctica?`
+
+Notice how the prompt instruction affects how the system responds to uncertain questions.
+
+<br><br>
+
+10. Now let's test RAG's limitations. Ask a question that has NO answer in the PDFs:
+
+```
+What's the CEO's name?
+```
+
+Observe: Does it say "I don't know" or does it make something up (hallucinate)? This shows you why testing edge cases is critical.
+
+<br><br>
+
+11. Stop the program. If the system hallucinated an answer in step 10, go back to line 200 and make the "I don't have enough information" instruction more prominent by moving it to the top of the instructions list. Save and test again.
+
+<br><br>
+
+12. Run the system one final time with the optimized settings (k=3, improved prompt). Try these questions to verify your RAG system works correctly:
+
+```
+How do I reset my password?
+What are the shipping costs?
+```
+
+Both should now give good, honest, well-sourced answers.
+
+<br><br>
+
+**Key Takeaways:**
+- The number of retrieved chunks (k) affects answer completeness - too few misses context, too many adds noise
+- Prompt engineering controls RAG behavior - you can make it more honest, cite sources better, or format answers differently
+- RAG has limitations - it only knows what's in the documents, so always test with questions outside your knowledge base
+- Testing edge cases is essential - try questions with no answers, ambiguous questions, and questions outside the document scope
 
 <p align="center">
 <b>[END OF LAB]</b>

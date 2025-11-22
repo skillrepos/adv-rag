@@ -1,339 +1,630 @@
 #!/usr/bin/env python3
 """
-Enhanced RAG Implementation with performance monitoring
+Enhanced RAG (Retrieval-Augmented Generation) Implementation
+────────────────────────────────────────────────────────────────────
+TRUE RAG with Performance Monitoring and Query Caching
+
+This file demonstrates a complete RAG pipeline with enhancements:
+1. Retrieve relevant chunks from ChromaDB (semantic search)
+2. Augment the prompt with retrieved context
+3. Generate answer using Llama 3.2 via Ollama
+4. Performance monitoring (timing, cache hit rate)
+5. Query caching for repeated questions
+
+Compatible with the database created by tools/index_pdfs.py
 """
 
-import os
-import re
 import logging
 import time
-from typing import List, Dict, Optional
-import chromadb
-from chromadb.config import Settings
-import pypdf
+from typing import List, Dict
+from pathlib import Path
+import requests
+import json
+
+from chromadb import PersistentClient
+from chromadb.config import Settings, DEFAULT_TENANT, DEFAULT_DATABASE
 
 # Configure logging with more detail
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger("rag-system")
+logger = logging.getLogger(__name__)
 
-class KnowledgeBase:
-    """Enhanced RAG system with performance monitoring"""
+# ═══════════════════════════════════════════════════════════════════
+# Configuration
+# ═══════════════════════════════════════════════════════════════════
 
-    def __init__(self, pdf_directory: str = "./knowledge_base_pdfs"):
-        """Initialize the knowledge base with ChromaDB"""
-        self.pdf_directory = pdf_directory
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "llama3.2"  # or "llama3.2:1b" for faster responses
+
+class RAGSystem:
+    """Enhanced RAG system with performance monitoring and caching"""
+
+    def __init__(self, chroma_path: str = "./chroma_db", collection_name: str = "pdf_documents"):
+        """Initialize the RAG system with performance tracking"""
+        self.chroma_path = Path(chroma_path)
+        self.collection_name = collection_name
         self.chroma_client = None
         self.collection = None
-        self.documents = []
+
+        # PERFORMANCE TRACKING: Monitor system performance over time
+        # This helps identify bottlenecks and measure improvements
         self.performance_metrics = {
-            "load_time": 0,
-            "search_times": [],
-            "total_searches": 0
+            "connection_time": 0,        # Time to connect to database (one-time)
+            "retrieval_times": [],       # List of all retrieval times (for averaging)
+            "generation_times": [],      # List of all LLM generation times
+            "total_queries": 0,          # Total number of queries processed
+            "cache_hits": 0              # How many queries were served from cache
         }
-        self.initialize_database()
-        self.load_documents()
 
-    def initialize_database(self):
-        """Initialize ChromaDB vector database with timing"""
+        # QUERY CACHE: Store answers for repeated questions
+        # Key: "question:max_chunks" → Value: {answer, sources, context, times}
+        # This saves expensive LLM calls (2-5 seconds) for repeated questions
+        self.answer_cache = {}
+        self.cache_max_size = 20  # Limit cache size to prevent memory issues
+
+        self.connect_to_database()
+
+    def connect_to_database(self):
+        """Connect to the existing ChromaDB persistent database with timing"""
+        # TIMING: Track how long database connection takes
         start_time = time.time()
-        logger.info("Initializing ChromaDB...")
+        logger.info(f"Connecting to ChromaDB at {self.chroma_path}...")
 
-        self.chroma_client = chromadb.Client(Settings(anonymized_telemetry=False))
+        # VALIDATION: Check if database exists on disk
+        if not self.chroma_path.exists():
+            logger.error(f"Database not found at {self.chroma_path.resolve()}")
+            logger.error("Please run 'python tools/index_pdfs.py' first.")
+            raise FileNotFoundError(f"ChromaDB not found at {self.chroma_path}")
 
-        # Delete existing collection if it exists
+        # CONNECT: Use PersistentClient to connect to disk-based database
+        # Same client type as index_pdfs.py ensures compatibility
+        self.chroma_client = PersistentClient(
+            path=str(self.chroma_path),
+            settings=Settings(),
+            tenant=DEFAULT_TENANT,
+            database=DEFAULT_DATABASE,
+        )
+
         try:
-            self.chroma_client.delete_collection("knowledge_docs")
-        except:
-            pass
+            # GET COLLECTION: Access existing collection
+            self.collection = self.chroma_client.get_collection(name=self.collection_name)
+            collection_data = self.collection.get()
+            total_chunks = len(collection_data.get("documents", []))
 
-        # Create new collection
-        self.collection = self.chroma_client.create_collection("knowledge_docs")
+            # RECORD PERFORMANCE: Store connection time for statistics
+            self.performance_metrics["connection_time"] = time.time() - start_time
 
-        init_time = time.time() - start_time
-        logger.info(f"ChromaDB initialized successfully in {init_time:.3f} seconds")
-
-    def load_pdf_document(self, file_path: str, file_id: str) -> Optional[Dict]:
-        """Load a single PDF document with timing"""
-        try:
-            start_time = time.time()
-            logger.info(f"Loading PDF: {file_path}")
-
-            # Extract text from PDF
-            with open(file_path, 'rb') as file:
-                pdf_reader = pypdf.PdfReader(file)
-                text = ""
-                page_count = len(pdf_reader.pages)
-
-                for page_num, page in enumerate(pdf_reader.pages):
-                    text += page.extract_text() + " "
-                    if (page_num + 1) % 10 == 0:
-                        logger.debug(f"  Processed {page_num + 1}/{page_count} pages")
-
-            # Clean up extracted text
-            text = re.sub(r'\s+', ' ', text.strip())
-
-            # Determine category from filename with enhanced logic
-            category = "general"
-            file_lower = file_id.lower()
-
-            category_mappings = {
-                "returns": ["return", "refund", "exchange"],
-                "shipping": ["shipping", "delivery", "ship"],
-                "account": ["password", "account", "login", "auth"],
-                "troubleshooting": ["troubleshoot", "problem", "issue", "fix"],
-                "payment": ["payment", "pay", "card", "billing"],
-                "support": ["support", "help", "contact"]
-            }
-
-            for cat, keywords in category_mappings.items():
-                if any(keyword in file_lower for keyword in keywords):
-                    category = cat
-                    break
-
-            document = {
-                "id": file_id,
-                "text": text,
-                "category": category,
-                "source": os.path.basename(file_path),
-                "page_count": page_count,
-                "char_count": len(text)
-            }
-
-            load_time = time.time() - start_time
-            logger.info(f"Successfully loaded {file_id}: {len(text)} chars, {page_count} pages in {load_time:.2f}s")
-
-            return document
+            logger.info(f"Connected to collection '{self.collection_name}' in {self.performance_metrics['connection_time']:.3f}s")
+            logger.info(f"Collection contains {total_chunks} indexed chunks")
 
         except Exception as e:
-            logger.error(f"Failed to load PDF {file_path}: {e}")
-            return None
+            logger.error(f"Failed to access collection '{self.collection_name}': {e}")
+            raise
 
-    def load_documents(self):
-        """Load all PDF documents from the directory with timing"""
+    def retrieve(self, query: str, max_results: int = 3) -> tuple:
+        """
+        STEP 1: RETRIEVE relevant chunks from vector database.
+
+        Returns:
+        --------
+        tuple
+            (retrieved_chunks, retrieval_time)
+        """
+        # TIMING: Track how long retrieval takes
         start_time = time.time()
-
-        # Check if PDF directory exists
-        if not os.path.exists(self.pdf_directory):
-            logger.warning(f"PDF directory not found: {self.pdf_directory}")
-            logger.info("Using sample documents instead")
-            self.load_sample_documents()
-            return
-
-        # Load all PDF files
-        pdf_files = [f for f in os.listdir(self.pdf_directory) if f.endswith('.pdf')]
-        logger.info(f"Found {len(pdf_files)} PDF files to load")
-
-        for i, filename in enumerate(pdf_files, 1):
-            file_path = os.path.join(self.pdf_directory, filename)
-            file_id = filename.replace('.pdf', '')
-
-            logger.info(f"Loading document {i}/{len(pdf_files)}: {filename}")
-
-            document = self.load_pdf_document(file_path, file_id)
-            if document:
-                self.documents.append(document)
-
-                # Add to ChromaDB with metadata
-                self.collection.add(
-                    documents=[document["text"]],
-                    metadatas=[{
-                        "category": document["category"],
-                        "source": document["source"],
-                        "page_count": str(document["page_count"]),
-                        "char_count": str(document["char_count"])
-                    }],
-                    ids=[document["id"]]
-                )
-
-        self.performance_metrics["load_time"] = time.time() - start_time
-        logger.info(f"Loaded {len(self.documents)} documents in {self.performance_metrics['load_time']:.2f} seconds")
-
-    def load_sample_documents(self):
-        """Load sample documents if PDFs are not available"""
-        sample_docs = [
-            {
-                "id": "policy_returns",
-                "text": "Return Policy: Items can be returned within 30 days of purchase with original receipt. Products must be in original condition and packaging. Refunds are processed within 5-7 business days. Exchanges are available for different sizes or colors of the same product. Return shipping is free for defective items.",
-                "category": "returns",
-                "source": "sample_data"
-            },
-            {
-                "id": "policy_shipping",
-                "text": "Shipping Information: Standard shipping takes 3-5 business days within the US ($5.99). Express shipping available in 1-2 business days ($15.99). Free shipping on orders over $50. International shipping takes 7-14 business days ($19.99). Tracking information is provided for all orders.",
-                "category": "shipping",
-                "source": "sample_data"
-            },
-            {
-                "id": "account_password",
-                "text": "Account & Password Help: To reset your password, click 'Forgot Password' on the login page. Enter your email address and check your inbox for reset instructions. Passwords must be at least 8 characters with one uppercase letter and one number. For account issues, contact support@example.com",
-                "category": "account",
-                "source": "sample_data"
-            },
-            {
-                "id": "troubleshoot_power",
-                "text": "Device Power Troubleshooting: If your device won't turn on, first check the power cable connection. Try a different outlet. Hold the power button for 10 seconds to force reset. Check if the battery needs charging - plug in for at least 30 minutes. If issues persist, the device may need service.",
-                "category": "troubleshooting",
-                "source": "sample_data"
-            }
-        ]
-
-        for doc in sample_docs:
-            doc["page_count"] = 1
-            doc["char_count"] = len(doc["text"])
-            self.documents.append(doc)
-
-            self.collection.add(
-                documents=[doc["text"]],
-                metadatas=[{
-                    "category": doc["category"],
-                    "source": doc["source"],
-                    "page_count": "1",
-                    "char_count": str(doc["char_count"])
-                }],
-                ids=[doc["id"]]
-            )
-
-        logger.info(f"Loaded {len(sample_docs)} sample documents")
-
-    def search(self, query: str, max_results: int = 3) -> List[Dict]:
-        """Search the knowledge base for relevant documents with timing"""
-        start_time = time.time()
-        self.performance_metrics["total_searches"] += 1
 
         try:
-            logger.info(f"Searching for: '{query}'")
+            logger.info(f"[RETRIEVE] Searching for relevant context...")
 
-            # Query ChromaDB
+            # SEMANTIC SEARCH: Query ChromaDB using vector similarity
+            # ChromaDB automatically:
+            # 1. Embeds the query text into a vector
+            # 2. Compares to all stored vectors using cosine similarity
+            # 3. Returns the N most similar chunks
             results = self.collection.query(
-                query_texts=[query],
-                n_results=max_results
+                query_texts=[query],              # User's question
+                n_results=max_results,            # Number of chunks to retrieve
+                include=["documents", "metadatas", "distances"]  # What to return
             )
 
-            # Format results
-            formatted_results = []
-            if results['documents'] and len(results['documents'][0]) > 0:
-                for i in range(len(results['documents'][0])):
-                    document = results['documents'][0][i]
-                    metadata = results['metadatas'][0][i]
-                    distance = results['distances'][0][i] if 'distances' in results else 0
+            # FORMAT RESULTS: Convert ChromaDB response to our format
+            retrieved_chunks = []
 
-                    # Calculate relevance score (inverse of distance)
+            if results['documents'] and len(results['documents'][0]) > 0:
+                # Process each retrieved chunk
+                for i in range(len(results['documents'][0])):
+                    document = results['documents'][0][i]   # Text content
+                    metadata = results['metadatas'][0][i]   # Source, page, etc.
+                    distance = results['distances'][0][i]   # Cosine distance (lower = better)
+
+                    # CONVERT DISTANCE TO SCORE: More intuitive metric
+                    # Distance: 0 = identical, higher = less similar
+                    # Score: 1.0 = perfect match, lower = less relevant
                     score = 1.0 / (1.0 + distance)
 
-                    formatted_results.append({
-                        "id": results['ids'][0][i],
+                    retrieved_chunks.append({
                         "content": document,
-                        "category": metadata.get('category', 'unknown'),
                         "source": metadata.get('source', 'unknown'),
-                        "score": score,
-                        "metadata": metadata
+                        "page": metadata.get('page', 'unknown'),
+                        "type": metadata.get('type', 'text'),
+                        "score": score
                     })
 
-            search_time = time.time() - start_time
-            self.performance_metrics["search_times"].append(search_time)
+                    logger.info(f"  [RETRIEVE] Found: {metadata.get('source')} (page {metadata.get('page')}) - Score: {score:.3f}")
 
-            logger.info(f"Search completed in {search_time:.3f} seconds, found {len(formatted_results)} results")
+            # RECORD PERFORMANCE: Track retrieval time for statistics
+            retrieval_time = time.time() - start_time
+            self.performance_metrics["retrieval_times"].append(retrieval_time)
 
-            return formatted_results
+            logger.info(f"[RETRIEVE] Retrieved {len(retrieved_chunks)} chunks in {retrieval_time:.3f}s")
+
+            return retrieved_chunks, retrieval_time
 
         except Exception as e:
-            logger.error(f"Search failed: {e}")
-            return []
+            logger.error(f"Retrieval failed: {e}")
+            return [], 0
 
-    def get_statistics(self) -> Dict:
-        """Get enhanced statistics about the knowledge base"""
-        # IMPORTANT: Initialize ALL keys that will be incremented in the loop below
-        stats = {
-            "total_documents": len(self.documents),
-            "categories": {},
-            "total_characters": 0,  # Must initialize before using +=
-            "total_pages": 0,       # Must initialize before using +=
-            "performance": {
-                "load_time": self.performance_metrics["load_time"],
-                "total_searches": self.performance_metrics["total_searches"],
-                "avg_search_time": 0
+    def build_prompt(self, query: str, context_chunks: List[Dict]) -> str:
+        """
+        STEP 2: AUGMENT - Build a prompt with retrieved context.
+
+        This is the 'A' in RAG - augmenting the user's question with relevant context.
+        """
+        logger.info("[AUGMENT] Building prompt with context...")
+
+        # BUILD CONTEXT SECTION: Combine retrieved chunks with source attribution
+        context_text = ""
+        for i, chunk in enumerate(context_chunks, 1):
+            # Add header showing where this chunk came from
+            context_text += f"\n--- Context {i} (Source: {chunk['source']}, Page: {chunk['page']}) ---\n"
+            # Add the actual content
+            context_text += chunk['content']
+            context_text += "\n"
+
+        # BUILD FULL PROMPT: Instructions + Context + Question
+        # This prompt guides the LLM to generate grounded answers
+        prompt = f"""You are a helpful assistant answering questions based on the provided documentation.
+
+Use the following context from the documentation to answer the user's question. If the context doesn't contain enough information to answer the question, say so clearly.
+
+CONTEXT FROM DOCUMENTATION:
+{context_text}
+
+USER QUESTION:
+{query}
+
+INSTRUCTIONS:
+- Answer based ONLY on the context provided above
+- Be specific and cite which document/page the information comes from
+- If the context doesn't contain the answer, say "I don't have enough information in the provided documentation to answer that."
+- Keep your answer concise and helpful
+
+ANSWER:"""
+
+        return prompt
+
+    def generate(self, prompt: str) -> tuple:
+        """
+        STEP 3: GENERATE - Get answer from LLM using Ollama.
+
+        Returns:
+        --------
+        tuple
+            (answer, generation_time)
+        """
+        # TIMING: Track how long LLM generation takes
+        start_time = time.time()
+        logger.info("[GENERATE] Querying Llama 3.2 via Ollama...")
+
+        try:
+            # PREPARE LLM REQUEST: Configure generation parameters
+            payload = {
+                "model": OLLAMA_MODEL,        # Which model (llama3.2)
+                "prompt": prompt,              # Augmented prompt with context
+                "stream": False,               # Get complete response at once
+                "options": {
+                    "temperature": 0.3,        # Lower = more focused (0-1 scale)
+                    "top_p": 0.9,              # Nucleus sampling
+                    "max_tokens": 500          # Limit answer length
+                }
             }
+
+            # SEND REQUEST: Call Ollama's HTTP API
+            # Ollama must be running locally: ollama serve
+            response = requests.post(
+                OLLAMA_API_URL,
+                json=payload,
+                timeout=60  # LLM generation can take time
+            )
+
+            # CALCULATE TIME: Record how long generation took
+            generation_time = time.time() - start_time
+
+            # PROCESS RESPONSE: Extract generated answer
+            if response.status_code == 200:
+                result = response.json()
+                answer = result.get('response', '').strip()
+
+                # RECORD PERFORMANCE: Add to metrics for averaging
+                self.performance_metrics["generation_times"].append(generation_time)
+                logger.info(f"[GENERATE] Answer generated in {generation_time:.3f}s")
+
+                return answer, generation_time
+            else:
+                error_msg = f"Error: Failed to get response from Ollama. Is Ollama running? (ollama serve)"
+                logger.error(error_msg)
+                return error_msg, generation_time
+
+        except requests.exceptions.ConnectionError:
+            error_msg = "Error: Could not connect to Ollama. Make sure Ollama is running:\n  ollama serve"
+            logger.error(error_msg)
+            return error_msg, 0
+        except requests.exceptions.Timeout:
+            error_msg = "Error: Ollama request timed out"
+            logger.error(error_msg)
+            return error_msg, 0
+        except Exception as e:
+            error_msg = f"Error: Generation failed: {e}"
+            logger.error(error_msg)
+            return error_msg, 0
+
+    def query(self, question: str, max_context_chunks: int = 3, use_cache: bool = True) -> Dict:
+        """
+        Complete RAG pipeline with caching: Retrieve → Augment → Generate
+
+        Parameters:
+        -----------
+        question : str
+            User's question
+        max_context_chunks : int
+            How many chunks to retrieve as context
+        use_cache : bool
+            Whether to use cached answers for repeated questions
+
+        Returns:
+        --------
+        Dict
+            Answer, sources, and performance metrics
+        """
+        # TIMING: Track total time for this query
+        start_time = time.time()
+        self.performance_metrics["total_queries"] += 1
+
+        logger.info("="*60)
+        logger.info(f"RAG Query #{self.performance_metrics['total_queries']}: {question}")
+        logger.info("="*60)
+
+        # ═══════════════════════════════════════════════════════════════
+        # CACHE CHECK: See if we've answered this exact question before
+        # ═══════════════════════════════════════════════════════════════
+
+        # Cache key includes both question and number of chunks
+        # Different chunk counts might give different answers
+        cache_key = f"{question}:{max_context_chunks}"
+
+        if use_cache and cache_key in self.answer_cache:
+            # CACHE HIT: Return pre-computed answer instantly
+            # This saves 2-5 seconds by skipping LLM generation
+            self.performance_metrics["cache_hits"] += 1
+            cached_result = self.answer_cache[cache_key]
+            total_time = time.time() - start_time
+
+            logger.info(f"[CACHE HIT] Returning cached answer (saved ~{cached_result['generation_time']:.1f}s)")
+
+            return {
+                **cached_result,
+                "from_cache": True,
+                "total_time": total_time  # Instant retrieval from cache
+            }
+
+        # ═══════════════════════════════════════════════════════════════
+        # CACHE MISS: Need to process the query through full RAG pipeline
+        # ═══════════════════════════════════════════════════════════════
+
+        # STEP 1: RETRIEVE - Find relevant chunks from vector database
+        # Returns both the chunks and how long retrieval took
+        context_chunks, retrieval_time = self.retrieve(question, max_results=max_context_chunks)
+
+        # EARLY EXIT: No relevant content found
+        if not context_chunks:
+            return {
+                "answer": "I couldn't find any relevant information in the documentation to answer your question.",
+                "sources": [],
+                "context_used": [],
+                "retrieval_time": retrieval_time,
+                "generation_time": 0,
+                "total_time": time.time() - start_time,
+                "from_cache": False
+            }
+
+        # STEP 2: AUGMENT - Build prompt with retrieved context
+        # Combines context chunks with the question and instructions
+        prompt = self.build_prompt(question, context_chunks)
+
+        # STEP 3: GENERATE - Get answer from LLM
+        # Returns both the answer and how long generation took
+        answer, generation_time = self.generate(prompt)
+
+        # CALCULATE TOTAL TIME: From start to finish
+        total_time = time.time() - start_time
+
+        # PREPARE RESPONSE: Package answer with metadata and timing
+        response = {
+            "answer": answer,
+            "sources": [
+                {
+                    "source": chunk['source'],  # PDF filename
+                    "page": chunk['page'],      # Page number
+                    "score": chunk['score']     # Relevance (0-1)
+                }
+                for chunk in context_chunks
+            ],
+            "context_used": context_chunks,
+            "retrieval_time": retrieval_time,      # Time to search vector DB
+            "generation_time": generation_time,    # Time for LLM to generate
+            "total_time": total_time,              # Total elapsed time
+            "from_cache": False                    # Fresh computation
         }
 
-        for doc in self.documents:
-            category = doc["category"]
-            if category not in stats["categories"]:
-                stats["categories"][category] = 0
-            stats["categories"][category] += 1
-            stats["total_characters"] += doc.get("char_count", len(doc["text"]))
-            stats["total_pages"] += doc.get("page_count", 1)
+        # ═══════════════════════════════════════════════════════════════
+        # CACHE THE RESULT: Save for future identical queries
+        # ═══════════════════════════════════════════════════════════════
 
-        # Calculate average search time
-        if self.performance_metrics["search_times"]:
-            stats["performance"]["avg_search_time"] = sum(self.performance_metrics["search_times"]) / len(self.performance_metrics["search_times"])
+        if use_cache:
+            # SIMPLE LRU EVICTION: Remove oldest entry if cache is full
+            # This prevents unbounded memory growth
+            if len(self.answer_cache) >= self.cache_max_size:
+                # Remove first (oldest) entry - dict preserves insertion order in Python 3.7+
+                first_key = next(iter(self.answer_cache))
+                del self.answer_cache[first_key]
 
-        return stats
+            # STORE IN CACHE: Save answer and timing for next time
+            # We don't cache total_time since it varies by execution
+            self.answer_cache[cache_key] = {
+                "answer": answer,
+                "sources": response["sources"],
+                "context_used": context_chunks,
+                "retrieval_time": retrieval_time,
+                "generation_time": generation_time
+            }
 
-# Main execution for testing
+        logger.info(f"[COMPLETE] Total time: {total_time:.3f}s (retrieval: {retrieval_time:.3f}s, generation: {generation_time:.3f}s)")
+
+        return response
+
+    def get_statistics(self) -> Dict:
+        """Get enhanced statistics about the knowledge base and performance"""
+        try:
+            # GET DATABASE INFO: Retrieve all documents and metadata
+            collection_data = self.collection.get()
+            total_docs = len(collection_data.get("documents", []))
+            metadatas = collection_data.get("metadatas", [])
+
+            # COUNT BY SOURCE: How many chunks per PDF file
+            sources = {}
+            content_types = {"text": 0, "table": 0}
+
+            for meta in metadatas:
+                # Count chunks per source
+                source = meta.get("source", "unknown")
+                sources[source] = sources.get(source, 0) + 1
+
+                # Count text vs table chunks
+                content_type = meta.get("type", "text")
+                if content_type in content_types:
+                    content_types[content_type] += 1
+
+            # ═══════════════════════════════════════════════════════════════
+            # CALCULATE PERFORMANCE METRICS: Averages and cache statistics
+            # ═══════════════════════════════════════════════════════════════
+
+            # Average retrieval time across all queries
+            avg_retrieval_time = 0
+            if self.performance_metrics["retrieval_times"]:
+                avg_retrieval_time = sum(self.performance_metrics["retrieval_times"]) / len(self.performance_metrics["retrieval_times"])
+
+            # Average LLM generation time across all queries
+            avg_generation_time = 0
+            if self.performance_metrics["generation_times"]:
+                avg_generation_time = sum(self.performance_metrics["generation_times"]) / len(self.performance_metrics["generation_times"])
+
+            # Cache hit rate: What percentage of queries were served from cache
+            # Higher is better - means we're saving time by not regenerating
+            cache_hit_rate = 0
+            if self.performance_metrics["total_queries"] > 0:
+                cache_hit_rate = (self.performance_metrics["cache_hits"] / self.performance_metrics["total_queries"]) * 100
+
+            # RETURN COMPREHENSIVE STATS: Database + Performance
+            return {
+                # Database statistics
+                "total_chunks": total_docs,
+                "unique_sources": len(sources),
+                "sources": sources,
+                "content_types": content_types,
+                "database_path": str(self.chroma_path.resolve()),
+                "collection_name": self.collection_name,
+
+                # Performance metrics
+                "performance": {
+                    "connection_time": self.performance_metrics["connection_time"],
+                    "total_queries": self.performance_metrics["total_queries"],
+                    "avg_retrieval_time": avg_retrieval_time,      # Average vector search time
+                    "avg_generation_time": avg_generation_time,    # Average LLM time
+                    "cache_hits": self.performance_metrics["cache_hits"],
+                    "cache_hit_rate": cache_hit_rate,              # % of queries from cache
+                    "cached_queries": len(self.answer_cache)       # Current cache size
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get statistics: {e}")
+            return {}
+
+    def clear_cache(self):
+        """
+        Clear the answer cache.
+
+        Useful if you've updated the knowledge base and want to ensure
+        fresh answers without cached results.
+        """
+        self.answer_cache.clear()
+        logger.info("Answer cache cleared")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Main Interactive Loop
+# ═══════════════════════════════════════════════════════════════════
+
 if __name__ == "__main__":
     print("="*60)
-    print("Enhanced RAG Knowledge Base - Interactive Search")
+    print("Enhanced RAG System - Retrieval-Augmented Generation")
+    print("With Performance Monitoring and Query Caching")
+    print("Using ChromaDB + Llama 3.2 (Ollama)")
     print("="*60)
 
-    # Initialize knowledge base
-    kb = KnowledgeBase("../knowledge_base_pdfs")
+    try:
+        # ═══════════════════════════════════════════════════════════════
+        # INITIALIZE: Connect to database and enable performance tracking
+        # ═══════════════════════════════════════════════════════════════
 
-    # Show enhanced statistics
-    stats = kb.get_statistics()
-    print("\nKnowledge Base Statistics:")
-    print(f"  Total Documents: {stats['total_documents']}")
-    print(f"  Total Characters: {stats['total_characters']:,}")
-    print(f"  Total Pages: {stats['total_pages']}")
-    print(f"  Load Time: {stats['performance']['load_time']:.2f}s")
-    print("\n  Documents by Category:")
-    for category, count in stats['categories'].items():
-        print(f"    • {category}: {count}")
+        # Create enhanced RAG system with caching and metrics
+        rag = RAGSystem(chroma_path="./chroma_db", collection_name="pdf_documents")
 
-    # Suggested queries
-    print("\n" + "="*60)
-    print("Suggested Queries to Try:")
-    print("="*60)
-    print("  • How can I return a product?")
-    print("  • What are the shipping costs?")
-    print("  • Tell me about your warranty policy")
-    print("  • How do I reset my password?")
-    print("  • What payment methods do you accept?")
-    print("  • Do you offer international shipping?")
-    print("="*60)
+        # Display knowledge base and performance statistics
+        stats = rag.get_statistics()
+        print("\nKnowledge Base Statistics:")
+        print(f"  Total Chunks: {stats.get('total_chunks', 0)}")
+        print(f"  Unique Sources: {stats.get('unique_sources', 0)}")
+        print(f"  Database: {stats.get('database_path', 'N/A')}")
+        print(f"  Connection Time: {stats.get('performance', {}).get('connection_time', 0):.3f}s")
 
-    # Interactive search loop
-    print("\nType your question (or 'quit' to exit):")
+        print("\n  Content Types:")
+        for content_type, count in stats.get('content_types', {}).items():
+            print(f"    • {content_type}: {count}")
 
-    while True:
-        query = input("\n> ").strip()
+        print("\n  Source Documents:")
+        for source, count in stats.get('sources', {}).items():
+            print(f"    • {source}: {count} chunks")
 
-        if query.lower() in ['quit', 'exit', 'q']:
-            # Show final performance summary
-            final_stats = kb.get_statistics()
+        # ═══════════════════════════════════════════════════════════════
+        # VALIDATE OLLAMA: Ensure LLM service is ready
+        # ═══════════════════════════════════════════════════════════════
+
+        print("\n" + "="*60)
+        print("Checking Ollama Connection...")
+        print("="*60)
+        try:
+            # Check if Ollama is running by hitting the API
+            response = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if response.status_code == 200:
+                print("✅ Ollama is running")
+
+                # Verify our specific model is available
+                models = response.json().get('models', [])
+                model_names = [m.get('name', '') for m in models]
+                if OLLAMA_MODEL in model_names or any(OLLAMA_MODEL in name for name in model_names):
+                    print(f"✅ Model '{OLLAMA_MODEL}' is available")
+                else:
+                    print(f"⚠️  Model '{OLLAMA_MODEL}' not found. Run: ollama pull {OLLAMA_MODEL}")
+            else:
+                print("⚠️  Ollama not responding properly")
+        except:
+            print("❌ Ollama not running. Start with: ollama serve")
+            print("   Then pull model: ollama pull llama3.2")
+
+        # Suggested queries
+        print("\n" + "="*60)
+        print("Suggested Questions to Try:")
+        print("="*60)
+        print("  • How can I return a product?")
+        print("  • What are the shipping costs?")
+        print("  • How do I reset my password?")
+        print("  • What should I do if my device won't turn on?")
+        print("  • Do you offer international shipping?")
+        print("\nTip: Repeat a question to see cache performance!")
+        print("="*60)
+
+        # ═══════════════════════════════════════════════════════════════
+        # INTERACTIVE LOOP: Process questions with performance tracking
+        # ═══════════════════════════════════════════════════════════════
+
+        print("\nAsk your question (or 'quit' to exit, 'stats' for performance):")
+
+        while True:
+            # GET USER INPUT: Read question or command
+            question = input("\n> ").strip()
+
+            # COMMAND: EXIT - Show final performance summary
+            if question.lower() in ['quit', 'exit', 'q']:
+                final_stats = rag.get_statistics()
+                perf = final_stats.get('performance', {})
+
+                print("\n" + "="*60)
+                print("Session Performance Summary")
+                print("="*60)
+                print(f"Total Queries: {perf.get('total_queries', 0)}")
+                print(f"Cache Hits: {perf.get('cache_hits', 0)} ({perf.get('cache_hit_rate', 0):.1f}%)")
+                if perf.get('avg_retrieval_time', 0) > 0:
+                    print(f"Avg Retrieval Time: {perf.get('avg_retrieval_time', 0):.3f}s")
+                if perf.get('avg_generation_time', 0) > 0:
+                    print(f"Avg Generation Time: {perf.get('avg_generation_time', 0):.3f}s")
+                print("\nGoodbye!")
+                break
+
+            # COMMAND: STATS - Show current performance metrics
+            if question.lower() == 'stats':
+                current_stats = rag.get_statistics()
+                perf = current_stats.get('performance', {})
+                print("\nCurrent Performance Metrics:")
+                print(f"  Queries: {perf.get('total_queries', 0)}")
+                print(f"  Cache Hits: {perf.get('cache_hits', 0)} ({perf.get('cache_hit_rate', 0):.1f}%)")
+                print(f"  Cached Answers: {perf.get('cached_queries', 0)}")
+                if perf.get('avg_retrieval_time', 0) > 0:
+                    print(f"  Avg Retrieval: {perf.get('avg_retrieval_time', 0):.3f}s")
+                if perf.get('avg_generation_time', 0) > 0:
+                    print(f"  Avg Generation: {perf.get('avg_generation_time', 0):.3f}s")
+                continue
+
+            # SKIP: Empty input
+            if not question:
+                continue
+
+            # PROCESS QUERY: Run through RAG pipeline (with caching)
+            result = rag.query(question, max_context_chunks=3)
+
+            # DISPLAY ANSWER: Show the generated response
             print("\n" + "="*60)
-            print("Session Summary")
+            print("ANSWER:")
             print("="*60)
-            print(f"Total Searches: {final_stats['performance']['total_searches']}")
-            if final_stats['performance']['avg_search_time'] > 0:
-                print(f"Average Search Time: {final_stats['performance']['avg_search_time']:.3f}s")
-            print("\nGoodbye!")
-            break
+            print(result['answer'])
 
-        if not query:
-            continue
+            # DISPLAY SOURCES: Show which documents were used
+            if result['sources']:
+                print("\n" + "-"*60)
+                print("SOURCES:")
+                print("-"*60)
+                for i, source in enumerate(result['sources'], 1):
+                    print(f"  [{i}] {source['source']} (Page {source['page']}) - Relevance: {source['score']:.3f}")
 
-        # Search and display results with timing
-        results = kb.search(query, max_results=3)
+            # DISPLAY PERFORMANCE: Show timing breakdown for this query
+            # This helps understand cache effectiveness and system performance
+            print("\n" + "-"*60)
+            print("PERFORMANCE:")
+            print("-"*60)
+            if result.get('from_cache'):
+                print(f"  ⚡ From cache (instant)")
+            else:
+                print(f"  Retrieval: {result.get('retrieval_time', 0):.3f}s")
+                print(f"  Generation: {result.get('generation_time', 0):.3f}s")
+                print(f"  Total: {result.get('total_time', 0):.3f}s")
 
-        if not results:
-            print("  ℹ️  No results found. Try rephrasing your query.")
-            continue
-
-        print(f"\n  Found {len(results)} result(s):\n")
-        for i, result in enumerate(results, 1):
-            print(f"  [{i}] Category: {result['category']} | Score: {result['score']:.3f}")
-            print(f"      {result['content'][:150]}...")
-            print()
+    except KeyboardInterrupt:
+        print("\n\nInterrupted. Goodbye!")
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        print("\nMake sure to:")
+        print("  1. Run: python tools/index_pdfs.py")
+        print("  2. Start Ollama: ollama serve")
+        print("  3. Pull model: ollama pull llama3.2")

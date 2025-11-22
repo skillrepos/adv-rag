@@ -335,21 +335,41 @@ python sentiment.py
 cd /workspaces/aia-day1/ft
 ```
 
-2. We'll be tuning a basic model from Hugging Face called Distilbert. You can see information about that model here: <insert url>.
+<br><br>
 
-3. We'll be using that model to do sentiment analysis on Amazon product reviews. Sentiment analysis means determining if a review is positive, negative, or other - as we did with one of the examples in Lab 4. The dataset we'll be using for testing and fine-tuning is <insert data set>. You can see information about that dataset here: <insert URL>
+2. We'll be tuning a basic model from Hugging Face called *distilbert-base-uncased*. You can see information about that model [here](https://huggingface.co/distilbert/distilbert-base-uncased).
 
+<br><br>
 
-4. To build out this file, we'll use a side-by-side compare and merge approach. That means we'll start up an editor with a completed version of the file on the left and the starter version on the right. To do this, run the command below: (the complete code is in extra/reviews-ft.txt)
+3. We'll be using that model to do sentiment analysis on Amazon product reviews. Sentiment analysis means determining if a review is positive, negative, or other - as we did with one of the examples in Lab 4. The dataset we'll be using for testing and fine-tuning is a *top-level* one on Hugging Face named "Amazon Review Polarity". We can't see that version on Hugging Face, but there is one based on that that you can look at [here](https://huggingface.co/datasets/mteb/amazon_polarity). You can use the *Dataset Viewer* on that page to see the info in the dataset if interested.
+
+![dataset viewer](./images/aia-1-27.png?raw=true "dataset viewer")
+
+<br><br>
+
+4. To build out the actual fine-tuning demo, we'll use a side-by-side compare and merge approach. That means we'll start up an editor with a completed version of the file on the left and the starter version on the right. To do this, run the command below: (the complete code is in [extra/reviews-ft.txt](./extra/reviews-ft.txt)).
+
 
 ```
 code -d ../extra/reviews-ft.txt reviews-ft.py
 ```
 
+![diff](./images/aia-1-28.png?raw=true "diff")
+
+<br><br>
+
 5. After running this command, you'll see the side-by-side editors. Now we want to merge in the sections that are in the left file into the right file to build out our demo. Before you merge in a section, make sure to glance at the block of code to try and understand what it's doing. Then, when ready, hover over the bar between the two versions and an arrow should display. Click on the arrow to merge that section in.
 
+![review and merge](./images/aia-1-29.png?raw=true "review and merge")
 
-6. Proceed down through the remaining differences, quickly reviewing the code to be merged, and then merging it with the arrow. Once you are done, the files should show as the same without any remaining "blocks" of differences. When done, close the diff view by clicking on the "X" in the tab at the top.
+<br><br>
+
+
+6. Proceed down through the remaining differences, quickly reviewing the code to be merged, and then merging it with the arrow. Once you are done, the files should show as the same without any remaining "blocks" of differences. When there are no differences left and you're done, close the diff view by clicking on the "X" in the tab at the top.
+
+![close after merging](./images/aia-1-30.png?raw=true "close after merging")
+
+<br><br>
 
 
 7.  Now we can run the demo with the following command:
@@ -358,13 +378,27 @@ code -d ../extra/reviews-ft.txt reviews-ft.py
 python reviews-ft.py
 ```
 
-8. This will first download the Distilbert model and then run through a subset of reviews to see how well the model does (without any fine-tuning) on determining the sentiment of each review. If this goes by too fast, you can scroll back up to see the reviews and results. You will probably see something in the 30-50% success range.
+![running](./images/aia-1-31.png?raw=true "running")
+
+<br><br>
+
+8. This will first download the Distilbert model and then run through a subset of reviews to see how well the model does (without any fine-tuning) on determining the sentiment of each review. If this goes by too fast, you can scroll back up to see the reviews and results. You will probably see something in the 40-50% success range.
+
+![no fine tuning run](./images/aia-1-32.png?raw=true "no fine tuning run")
+
+<br><br>
 
 9. Now the model will use some Hugging Face transformer library tools to train the model from the dataset. This part will take probably as much as 5-8 minutes. What you are looking for here is the *loss value* to go down as the fine tuning proceeds. The loss value going down means that the model is getting better at predicting the sentiment as it learns from the dataset examples. 
 
+![fine tuning run](./images/aia-1-33.png?raw=true "fine tuning run")
+
+<br><br>
 
 10. At the end of the fine-tuning, the program will once again run through a test of the model's prediction for sentiments on the reviews. This time, since it has been fine-tuned, it should report success more in the 80-90% range.
 
+![after fine tuning run](./images/aia-1-34.png?raw=true "after fine tuning run")
+
+<br>
 <p align="center">
 **[END OF LAB]**
 </p>

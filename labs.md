@@ -617,110 +617,132 @@ Notice how the system should say it doesn't have that information (rather than m
 </p>
 </br></br>
 
-**Lab 8: Making RAG Answer Questions Correctly**
+**Lab 8: Tuning RAG - Temperature and Context**
 
-**Purpose: In this lab, we'll learn how to control RAG quality by tuning retrieval settings, improving prompts, and understanding limitations.**
+**Purpose: In this lab, we'll learn how to control RAG quality by tuning retrieval settings and temperature parameters.**
 
-1. You should still be in the *rag* subdirectory. We're going to experiment with the RAG system we just built to understand how different settings affect answer quality. First, let's run the complete RAG system and ask it a question.
-
-```
-python ../extra/rag_complete.txt
-```
-<br><br>
-
-2. After the system starts and shows the knowledge base statistics, try asking this question at the prompt:
+1. You should still be in the *rag* subdirectory. Open the RAG code file:
 
 ```
-How can I return a product?
-```
-
-Notice the answer quality and the sources it used. How complete is the answer? Does it have enough context?
-
-<br><br>
-
-3. Now let's see what happens when we retrieve fewer chunks. Stop the program (CTRL+C) and open the file in the editor:
-
-```
-code ../extra/rag_complete.txt
+code rag_code.py
 ```
 <br><br>
 
-4. Find line 465 (in the interactive loop section) where it says `result = rag.query(question, max_context_chunks=3)`. Change the `3` to `1` and save the file (CTRL/CMD + S).
+2. Find line 465 where it says `result = rag.query(question, max_context_chunks=3)`. This controls how many chunks are retrieved. Try changing `3` to `1`, save, and run:
+
+```
+python rag_code.py
+```
+
+Ask: `How can I return a product?`
+
+Notice the answer is incomplete - not enough context! Type `quit` to exit.
+
+![Mod](./images/aia-1-49.png?raw=true "Mod")
 
 <br><br>
 
-5. Run the RAG system again and ask the same question:
+3. Change `max_context_chunks` to `10`, save, and run again with the same question. Now there's too much context - it may be confusing or overwhelming. 
 
-```
-python ../extra/rag_complete.txt
-```
+![Mod](./images/aia-1-51.png?raw=true "Mod")
 
-Then enter: `How can I return a product?`
+<br>
 
-Notice how the answer is less complete with only 1 chunk of context. The system doesn't have enough information to give a full answer.
+Type `exit`. **Change it back to `3` (the sweet spot) and save it.**
 
-<br><br>
+![Mod](./images/aia-1-53.png?raw=true "Mod")
 
-6. Stop the program again (CTRL+C) and change line 465 to use `max_context_chunks=10` instead. Save and run again with the same question. Notice how the answer might be longer but potentially more confusing with too much context.
 
 <br><br>
 
-7. Now let's improve the prompt to make RAG more honest about uncertainty. Change `max_context_chunks` back to `3`, then find the prompt template around lines 188-203. Look at the current instructions to the LLM.
+4. Now let's experiment with **temperature** - this controls how creative vs consistent the LLM is. Find the `generate()` method around line 236. Change `"temperature": 0.3` to `0.0` (very deterministic). Save the file.
+
+![Temperature setting](./images/aia-1-58.png?raw=true "Temperature setting")
 
 <br><br>
 
-8. Add this new instruction after line 201 (after the "Keep your answer concise" line):
+5. Run the system and ask the same question **twice**:
 
 ```
-- If you're not completely confident in your answer, say "Based on the documentation..." to indicate uncertainty
+python rag_code.py
 ```
 
-Save the file (CTRL/CMD + S).
+Ask twice: `What are the shipping costs?`
+
+The answers should be nearly identical - temperature 0.0 gives consistent results. Type `exit`.
+
+![Low temperature setting](./images/aia-1-59.png?raw=true "Low temperature setting")
 
 <br><br>
 
-9. Run the RAG system again and this time ask a borderline question that might not have a clear answer:
+6. Change temperature to `1.7` (very creative), save, and run again. Ask the same question twice. Notice the answers may vary quite a bit more - different wording, different order, and not as *professional*. This is less predictable. Type `exit` and change temperature back to `0.3`.
 
-```
-python ../extra/rag_complete.txt
-```
+<br>
 
-Then enter: `Do you ship to Antarctica?`
+![Temperature setting](./images/aia-1-57.png?raw=true "Temperature setting")
 
-Notice how the prompt instruction affects how the system responds to uncertain questions.
+<br>
 
-<br><br>
+![High temperature output](./images/aia-1-56.png?raw=true "High temperature output")
 
-10. Now let's test RAG's limitations. Ask a question that has NO answer in the PDFs:
+<br>
 
-```
-What's the CEO's name?
-```
-
-Observe: Does it say "I don't know" or does it make something up (hallucinate)? This shows you why testing edge cases is critical.
+**Type `exit` and change temperature back to `0.3`.**
 
 <br><br>
 
-11. Stop the program. If the system hallucinated an answer in step 10, go back to line 200 and make the "I don't have enough information" instruction more prominent by moving it to the top of the instructions list. Save and test again.
+7. Now let's see **what the LLM actually sees**. Find the `query()` method around line 317. Right after the line `prompt = self.build_prompt(question, context_chunks)`, add this debug code:
+
+```python
+        # DEBUG: Show what the LLM actually sees
+        print("\n" + "="*60)
+        print("DEBUG: PROMPT SENT TO LLM")
+        print("="*60)
+        print(prompt)
+        print("="*60 + "\n")
+```
+
+Save the file.
+
+![Adding debug output](./images/aia-1-60.png?raw=true "Adding debug output")
 
 <br><br>
 
-12. Run the system one final time with the optimized settings (k=3, improved prompt). Try these questions to verify your RAG system works correctly:
+8. Run the system and ask a question:
 
 ```
-How do I reset my password?
+python rag_code.py
+```
+
+Ask: `How can I return a product?`
+
+<br><br>
+
+9. You'll now see the complete prompt including the system instructions, the 3 retrieved context chunks with sources, and your question. This is the "Augmentation" in RAG - augmenting your question with relevant context.
+
+![Prompt visualization](./images/aia-1-61.png?raw=true "Prompt visualization")
+
+<br><br>
+
+10. Try another question to see how the context changes:
+
+```
 What are the shipping costs?
 ```
 
-Both should now give good, honest, well-sourced answers.
+Notice how different chunks are retrieved, but the prompt structure stays the same. The context adapts to each question!
+
+<br><br>
+
+11. When done, type `exit`. You can remove or comment out the debug print statements (add `#` before each line you added in step 7) to clean up the output for production use.
 
 <br><br>
 
 **Key Takeaways:**
-- The number of retrieved chunks (k) affects answer completeness - too few misses context, too many adds noise
-- Prompt engineering controls RAG behavior - you can make it more honest, cite sources better, or format answers differently
-- RAG has limitations - it only knows what's in the documents, so always test with questions outside your knowledge base
-- Testing edge cases is essential - try questions with no answers, ambiguous questions, and questions outside the document scope
+- **Chunk count (k)** affects answer quality - too few chunks miss context, too many add noise. 3-5 is often optimal.
+- **Temperature** controls consistency vs creativity - low (0.1) for deterministic answers, high (0.9) for varied responses, medium (0.3-0.5) for balance.
+- **RAG augmentation** adds retrieved context to your prompt before sending to the LLM - visualizing this helps you debug and improve results.
+- The same question can retrieve different context chunks, showing how semantic search adapts to each query.
 
 <p align="center">
 <b>[END OF LAB]</b>

@@ -1,7 +1,7 @@
 # Enterprise AI Accelerator
 ## Day 1 - Models and Retrieval Augmented Generation (RAG)
 ## Session labs 
-## Revision 1.1 - 11/22/25
+## Revision 1.2 - 11/28/25
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -91,7 +91,7 @@ python nn.py
 </p>
 </br></br>
 
-**Lab 2 - Experimenting with Tokenizations**
+**Lab 2 - Experimenting with Tokenization**
 
 **Purpose: In this lab, we'll see how different models do tokenization.**
 

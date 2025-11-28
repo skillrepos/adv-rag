@@ -141,5 +141,18 @@ echo "To stop Ollama later, run:"
 echo "  kill $OLLAMA_PID"
 echo "  or use: pkill ollama"
 echo ""
-echo "Ready for lab exercises!"
+
+# Step 8: Stop Ollama process to allow postAttach command to restart it
+echo "Stopping Ollama process ($OLLAMA_PID) so it can be managed by postAttach in devcontainer.json..."
+kill $OLLAMA_PID
+sleep 1
+if ps -p $OLLAMA_PID > /dev/null 2>&1; then
+    echo "  Ollama did not exit cleanly, forcing kill..."
+    kill -9 $OLLAMA_PID
+else
+    echo "✓ Ollama process stopped"
+fi
+echo ""
+
+echo "Ready for lab exercises! (Ollama will be started automatically by devcontainer postAttach)"
 echo "========================================"

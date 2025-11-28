@@ -636,13 +636,13 @@ python rag_code.py
 
 Ask: `How can I return a product?`
 
-Notice the answer is incomplete - not enough context! Type `quit` to exit.
+The answer may be ok, or it may be incomplete, without enough context. Type `quit` to exit.
 
 ![Mod](./images/aia-1-49.png?raw=true "Mod")
 
 <br><br>
 
-3. Change `max_context_chunks` to `10`, save, and run again with the same question. Now there's too much context - it may be confusing or overwhelming. 
+3. Change `max_context_chunks` to `10`, save, and run again with the same question. Now there may be too much context - it may be confusing or overwhelming. 
 
 ![Mod](./images/aia-1-51.png?raw=true "Mod")
 
@@ -708,7 +708,7 @@ Save the file.
 
 <br><br>
 
-8. Run the system and ask a question:
+8. Save your changes. Run the system and ask a question:
 
 ```
 python rag_code.py

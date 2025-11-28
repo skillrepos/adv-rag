@@ -60,7 +60,7 @@ python nn.py
 
 <br><br>
 
-7. Now, let's see what happens if we change the expected outputs to be different. In the editor for the *nn.py* file, find the line for the *training_outputs*. Modify the values in the array to be ([[0],[1],[0],[1]]). These are the values of the second element in each of the training data entries. After you're done, save your changes. (You can use the CMD/CTRL+S keyboard shortcut.)
+7. Now, let's see what happens if we change the expected outputs to be different. In the editor for the *nn.py* file, find the line for the *training_outputs*. Modify the values in the array to be ([[0],[1],[0],[1]]). These are the values of the second element in each of the training data entries. After you're done, **save your changes**. (You can use the CMD/CTRL+S keyboard shortcut.)
 
 ![Modifying expected outputs](./images/aia-1-7.png?raw=true "Modifying expected outputs")
 

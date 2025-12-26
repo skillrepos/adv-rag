@@ -1,6 +1,6 @@
-# Enterprise AI Accelerator - Day 1
+# Understanding and Using RAG
 
-## AI Concepts and Readiness ##
+## Repository for Generative AI RAG hands-on workshop ##
 
 These instructions will guide you through configuring a GitHub Codespaces environment that you can use to do the labs. 
 
@@ -14,7 +14,7 @@ To do this, when logged in to GitHub, go to https://github.com/settings/codespac
 
 **2. Click on the button below to start a new codespace from this repository.**
 
-Click here ➡️  [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/skillrepos/aia-day1?quickstart=1)
+Click here ➡️  [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/skillrepos/ragv2?quickstart=1)
 
 <br><br>
 
@@ -53,10 +53,10 @@ You can either open it in a separate browser instance or open it in the codespac
 
 ## License and Use
 
-These materials are provided as part of the **Enterprise AI Accelerator Workshop** conducted by **TechUpSkills (Brent Laster)**.
+These materials are provided as part of the **Understanding and Using RAG workshop** conducted by **TechUpSkills (Brent Laster)**.
 
 Use of this repository is permitted **only for registered workshop participants** for their own personal learning and
 practice. Redistribution, republication, or reuse of any part of these materials for teaching, commercial, or derivative
 purposes is not allowed without written permission.
 
-© 2025 TechUpSkills / Brent Laster. All rights reserved.
+© 2026 TechUpSkills / Brent Laster. All rights reserved.

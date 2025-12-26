@@ -20,28 +20,22 @@ Click here ➡️  [![Open in GitHub Codespaces](https://github.com/codespaces/b
 
 **3. Then click on the option to create a new codespace.**
 
-![Creating new codespace from button](./images/aia-0-2.png?raw=true "Creating new codespace from button")
+![Creating new codespace from button](./images/rag01.png?raw=true "Creating new codespace from button")
 
-This will run for a long time (up to 10 minutes) while it gets everything ready.
+**This will run for a long time while it gets everything ready.**
 
 After the initial startup, it will run a script to setup the python environment and install needed python pieces. This will take several more minutes to run. It will look like this while this is running.
 
-![Final prep](./images/aia-1-2.png?raw=true "Final prep")
+![Running setup script](./images/gaidd28.png?raw=true "Running setup script")
 
 The codespace is ready to use when you see a prompt like the one shown below in its terminal.
 
-![Ready to use](./images/aia-1-1.png?raw=true "Ready to use")
+![Ready to use](./images/rag02.png?raw=true "Ready to use")
 
-When you see this, just hit *Enter* to get to a prompt.
-
-<br><br>
 
 **4. Open up the *labs.md* file so you can follow along with the labs.**
-You can either open it in a separate browser instance or open it in the codespace. 
-
-![Opening labs](./images/aia-0-4.png?raw=true "Opening labs")
-
-<br>
+You can either open it in a separate browser instance or open it in the codespace. If you open it in the codespace, make sure to *Open Preview* so you can see it in Markdown form as intended.
+![Opening labs](./images/rag03.png?raw=true "Opening labs")
 
 **Now, you are ready for the labs!**
 

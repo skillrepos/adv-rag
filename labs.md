@@ -208,7 +208,7 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 
 **Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that retrieves relevant context from our vector database and uses an LLM to generate intelligent, grounded answers.**
 
-1. You should still be in the *rag* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 6 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, we need to bring down a smaller model to use with these labs. Use the Ollama command below:
+1. You should still be in the *rag* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 2 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, we need to bring down a smaller model to use with these labs. Use the Ollama command below:
 
 ```
 ollama pull llama3.2:1b
@@ -252,13 +252,13 @@ code -d ../extra/rag_complete.txt rag_code.py
 python rag_code.py
 ```
 
-The system will connect to the vector database we created in Lab 6 and check if Ollama is running.
+The system will connect to the vector database we created in Lab 2 and check if Ollama is running.
 
 <br><br>
 
 7. You should see knowledge base statistics showing how many chunks are indexed, and a check that Ollama is running with the llama3.2:1b model. If you see any errors about Ollama not running, check that with "ollama list".  If Ollama doesn't respond, try "ollama serve &".
 
-![Running](./images/aia-1-45.png?raw=true "Running")
+![Running](./images/ragv2-13.png?raw=true "Running")
 
 <br><br>
 
@@ -277,7 +277,7 @@ Watch what happens - the system will show you the three RAG steps in the logs:
 
 9. After a few seconds, you'll see an ANSWER section with the LLM-generated response, followed by a SOURCES section showing which PDFs and pages were used. Notice how the answer is much more complete and natural than just showing search results.
 
-![Answer](./images/aia-1-47.png?raw=true "Answer")
+![Answer](./images/ragv2-11.png?raw=true "Answer")
 
 <br><br>
 
@@ -291,7 +291,7 @@ What should I do if my device won't turn on?
 
 For each question, notice how the system retrieves relevant chunks and generates a complete answer based on that context.
 
-![Answer](./images/aia-1-46.png?raw=true "Answer")
+![Answer](./images/ragv2-12.png?raw=true "Answer")
 
 <br><br>
 
@@ -328,7 +328,7 @@ Notice how the system should say it doesn't have that information (rather than m
 
 **Purpose: In this lab, we'll see how to implement Graph RAG by querying a Neo4j database and using Ollama to generate responses.**
 
-1. For this lab, we'll need a neo4j instance running. We'll use a docker image for this that is already populated with data for us. There is a shell script named [**neo4j/neo4j-setup.sh**](./neo4j/neo4j-setup.sh) that you can run to start the neo4j container running. Change to the neo4j directory and run the script. This will take a few minutes to build and start. Afterwards you can change back to the *genai* subdirectory. Be sure to include the "&" to run this in the background.
+1. For this lab, we'll need a neo4j instance running. We'll use a docker image for this that is already populated with data for us. There is a shell script named [**neo4j/neo4j-setup.sh**](./neo4j/neo4j-setup.sh) that you can run to start the neo4j container running. Change to the neo4j directory and run the script. This will take a few minutes to build and start. Afterwards you can change back to the *code* subdirectory. Be sure to include the "&" to run this in the background.
 
 ```
 cd /workspaces/rag/neo4j

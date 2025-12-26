@@ -1,410 +1,104 @@
-# Enterprise AI Accelerator
-## Day 1 - Models and Retrieval Augmented Generation (RAG)
+# Gen AI: Understanding and Using RAG
+## Making LLMs smarter by pairing your data with Gen AI
 ## Session labs 
-## Revision 1.2 - 11/28/25
+## Revision 2.5 - 04/21/25
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
 **NOTE: To copy and paste in the codespace, you may need to use keyboard commands - CTRL-C and CTRL-V. Chrome may work best for this.**
 
-**Lab 1 - Working with Neural Networks**
+**Lab 1 - Grounding data by augmenting prompts**
 
-**Purpose: In this lab, we’ll learn more about neural networks by seeing how one is coded and trained.**
+**Purpose: In this lab, we’ll see a basic example of augmenting a prompt by retrieving context from a data file.**
 
-1. In our repository, we have a set of Python programs to help us illustrate and work with concepts in the labs. The first set are in the *llm* subdirectory. Go to the *TERMINAL* tab in the bottom part of your codespace and change into that directory.
-
-```
-cd llm
-```
-<br><br>
-
-2. For this lab, we have a simple neural net coded in Python. The file name is nn.py. Open the file either by clicking on [**llm/nn.py**](./llm/nn.py) or by entering the command below in the codespace's terminal.
+1. In our repository, we have a set of Python programs to help us illustrate and work with concepts in the labs. The first set are in the *genai* subdirectory. Go to the *TERMINAL* tab in the bottom part of your codespace and change into that directory.
 
 ```
-code nn.py
+cd genai
 ```
 <br><br>
 
-
-3. Scroll down to around line 55. Notice the *training_inputs* data and the *training_outputs* data. Each row of the *training_outputs* is what we want the model to predict for the corresponding input row. As coded, the output for the sample inputs ends up being the same as the first element of the array.  For inputs [0,0,1] we are trying to train the model to predict [0]. For the inputs [1,0,1], we are trying to train the model to predict [1], etc. The table below may help to explain.
-
-| **Dataset** | **Values** | **Desired Prediction** |
-| :---------: | :--------: | :--------------------: |
-| **1** |  0  0  1  |            0           |
-| **2** |  1  1  1  |            1           |
-| **3** |  1  0  1  |            1           |
-| **4** |  0  1  1  |            0           |
-
-![Code in simple nn](./images/aia-1-3.png?raw=true "Code in simple nn")
-
-<br><br>
-
-4. When we run the program, it will train the neural net to try and predict the outputs corresponding to the inputs. You will see the random training weights to start and then the adjusted weights to make the model predict the output. You will then be prompted to put in your own training data. We'll look at that in the next step. For now, go ahead and run the program (command below) but don't put in any inputs yet. Just notice how the weights have been adjusted after the training process.
+2. For this lab, we will simulate "retrieving" data from the Troubleshooting and Security manuals for a fictitious company called "Omnitech". Run the command below to create a text-based context file using information from the provided documents.
 
 ```
-python nn.py
+cat <<EOF > ../data/omnitech_context.txt
+OmniTech Force Restart: Press and hold the Power button for exactly 10 seconds.
+OmniTech Password Policy (v5.2): Accounts created after Jan 1, 2024, must be 8+ chars and cannot contain dictionary words like 'omnitech'.
+OmniTech Holiday Returns: Items bought Nov 1 - Dec 25 can be returned until Jan 31.
+EOF
 ```
-![Starting run of simple nn](./images/aia-1-4.png?raw=true "Starting run of simple nn") 
-
 <br><br>
 
-5. What you should see is that the weights after training are now set in a way that makes it more likely that the result will match the expected output value. (The higher positive value for the first weight means that the model has looked at the training data and realized it should "weigh" the first input higher in its prediction.) To prove this out, you can enter your own input set - just use 1's and 0's for each input. 
 
-![Inputs to simple nn](./images/aia-1-5.png?raw=true "Inputs to simple nn") 
+3. Open the starter script [lab1.py](./genai/lab1.py) in the editor.
 
-<br><br>
-
-6. After you put in your inputs, the neural net will process your input and because of the training, it should predict a result that is close to the first input value you entered (the one for *Input one*).
-
-![Prediction close to first input](./images/aia-1-6.png?raw=true "Prediction close to first input") 
-
-<br><br>
-
-7. Now, let's see what happens if we change the expected outputs to be different. In the editor for the *nn.py* file, find the line for the *training_outputs*. Modify the values in the array to be ([[0],[1],[0],[1]]). These are the values of the second element in each of the training data entries. After you're done, **save your changes**. (You can use the CMD/CTRL+S keyboard shortcut.)
-
-![Modifying expected outputs](./images/aia-1-7.png?raw=true "Modifying expected outputs")
-
-<br><br>
-
-8. Now, run the neural net again. This time when the weights after training are shown, you should see a bias for a higher weight for the second item.
 ```
-python nn.py
+code lab1.py
 ```
-![Second run of simple nn](./images/aia-1-8.png?raw=true "Second run of simple nn") 
 
 <br><br>
 
-9. At the input prompts, just input any sequence of 0's and 1's as before.
+
+4. Modify the prompt on line 17 to ask a highly specific question about OmniTech's internal procedures. This tests the LLM's "base" knowledge:
+
+```python
+"prompt": "How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?",
+```
 
 <br><br>
 
-10. When the trained model then processes your inputs, you should see that it predicts a value that is close to 0 or 1 depending on what your second input was.
+5. Save the file (CTRL+S or CMD+S) and run it. Observe the result: The AI will likely give a generic answer (like "usually 5-10 seconds") or admit it doesn't know the specific OmniTech policy.
 
-![Second output of simple nn](./images/aia-1-9.png?raw=true "Second output of simple nn")
+```bash
+python lab1.py
+```
 
 <br><br>
 
-11. (Optional) If you get done early and want more to do, feel free to try other combinations of training inputs and training outputs.
+6. Now, let’s add the "Retrieval" step. At the top of your script (after the imports), add the code to read the OmniTech context you created:
+
+```python
+# Read the proprietary OmniTech documentation snippet
+with open("../data/omnitech_context.txt", "r") as file:
+    omnitech_info = file.read()
+```
+
+<br><br>
+
+7. Update the prompt to include this context. Change the "prompt" line to use an f-string that injects the documentation:
+
+```python
+"prompt": f"Using the OmniTech Manuals below, answer the user question.\n\nManuals: {omnitech_info}\n\nQuestion: How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?",
+```
+
+<br><br>
+
+8. Save your changes (CTRL+S or CMD+S).
+
+<br><br>
+
+9. Run the script again:
+
+```bash
+python lab1.py
+```
+<br><br>
+
+10. Verify the success: Notice how the AI now provides the exact "10 seconds" requirement and the "January 31" holiday deadline found in the context.
+
+<br><br>
+
+11. Discussion Point: Why didn't we just "train" the model on this data? Training is expensive and slow. By simply "attaching" the relevant page of the manual to the prompt, we updated the model's knowledge in milliseconds.
+
+<br><br>
     
 <p align="center">
 **[END OF LAB]**
 </p>
 </br></br>
 
-**Lab 2 - Experimenting with Tokenization**
 
-**Purpose: In this lab, we'll see how different models do tokenization.**
-
-1. In the same *llm* directory, we have a simple program that can load a model and print out tokens generated by it. The file name is *tokenizer.py*. You can view the file either by clicking on [**llm/tokenizer.py**](./llm/tokenizer.py) or by entering the command below in the codespace's terminal (assuming you're still in the *genai* directory).
-
-```
-code tokenizer.py
-```
-
-<br><br>
-
-2. This program can be run and passed a model to use for tokenization. To start, we'll be using a model named *bert-base-uncased*. Let's look at this model on huggingface.co.  Go to https://huggingface.co/models and in the *Models* search area, type in *bert-base-uncased*. Select the entry for *google-bert/bert-base-uncased*.
-
-![Finding bert model on huggingface](./images/aia-1-10.png?raw=true "Finding bert model on huggingface")
-
-<br><br>
-
-3. Once you click on the selection, you'll be on the *model card* tab for the model. Take a look at the model card for the model and then click on the *Files and Versions* and *Community* tabs to look at those pages.
-
-![huggingface tabs](./images/aia-1-11.png?raw=true "huggingface tabs")
-
-<br><br>
-
-4. Now let's switch back to the codespace and, in the terminal, run the *tokenizer* program with the *bert-base-uncased* model. Enter the command below. This will download some of the files you saw on the *Files* tab for the model in HuggingFace.
-
-```
-python tokenizer.py bert-base-uncased
-```
-
-<br><br>
-
-5. After the program starts, you will be at a prompt to *Enter text*. Enter in some text like the following to see how it will be tokenized.
-
-```
-This is sample text for tokenization and text for embeddings.
-```
-
-![input for tokenization](./images/aia-1-12.png?raw=true "input for tokenization")
-
-<br><br>
-
-6. After you enter this, you'll see the various subword tokens that were extracted from the text you entered. And you'll also see the ids for the tokens stored in the model that matched the subwords.
-
-![tokenization output](./images/aia-1-13.png?raw=true "tokenization output")
-
-<br><br>
-
-7. Next, you can try out some other models by repeating steps 4 - 6 for other tokenizers like the following. (You can use the same text string or different ones. Notice how the text is broken down depending on the model and also the meta-characters.)
-```
-python tokenizer.py roberta-base
-python tokenizer.py gpt2
-python tokenizer.py xlnet-large-cased
-```
-
-<br><br>
-
-8. (Optional) If you finish early and want more to do, you can look up the models from step 7 on huggingface.co/models.
-
-<br>  
-<p align="center">
-<b>[END OF LAB]</b>
-</p>
-</br></br>
-
-**Lab 3 - Understanding embeddings, vectors and similarity measures**
-
-**Purpose: In this lab, we'll see how tokens get mapped to vectors and how vectors can be compared.**
-
-1. In the repository, we have a Python program that uses a Tokenizer and Model to create embeddings for three terms that you input. It then computes and displays the cosine similarity between each combination. Open the file to look at it by clicking on [**llm/vectors.py**](./llm/vectors.py) or by using the command below in the terminal.
-
-
-```
-code vectors.py
-```
-<br><br>
-
-2. Let's run the program. As we did for the tokenizer example, we'll pass in a model to use. We'll also pass in a second argument which is the number of dimensions from the vector for each term to show. Run the program with the command below. You can wait to enter terms until the next step.
-
-
-```
-python vectors.py bert-base-cased 5
-```
-
-![vectors program run](./images/aia-1-14.png?raw=true "vectors program run")
-
-<br><br>
-
-3. The command we just ran loads up the bert-base-cased model and tells it to show the first 5 dimensions of each vector for the terms we enter. The program will be prompting you for three terms. Enter each one in turn. You can try two closely related words and one that is not closely related. For example
-   - king
-   - queen
-   - duck
-
-![vectors program inputs](./images/aia-1-15.png?raw=true "vectors program inputs")
-
-<br><br>
-
-4. Once you enter the terms, you'll see the first 5 dimensions for each term. And then you'll see the cosine similarity displayed between each possible pair. This is how similar each pair of words is. The two that are most similar should have a higher cosine similarity "score".
-
-![vectors program outputs](./images/aia-1-16.png?raw=true "vectors program outputs")
-
-<br><br>
-
-5. Each vector in the bert-based models have 768 dimensions. Let's run the program again and tell it to display 768 dimensions for each of the three terms.  Also, you can try another set of terms that are more closely related, like *multiplication*, *division*, *addition*.
-
-```
-python vectors.py bert-base-cased 768
-```
-
-<br><br>
-
-6. You should see that the cosine similarities for all pair combinations are not as far apart this time.
-
-![vectors program second outputs](./images/aia-1-17.png?raw=true "vectors program second outputs")
-
-<br><br>
-
-7. As part of the output from the program, you'll also see the *token id* for each term. (It is above the print of the dimensions. If you don't want to scroll through all the dimensions, you can just run it again with a small number of dimensions like we did in step 2.) If you're using the same model as you did in lab 2 for tokenization, the ids will be the same. 
-
-![token id](./images/aia-1-18.png?raw=true "token id")
-
-<br><br>
-
-
-8. You can actually see where these mappings are stored if you look at the model on Hugging Face. For instance, for the *bert-base-cased* model, you can go to https://huggingface.co and search for bert-base-cased. Select the entry for google-bert/bert-base-cased. (Make sure you pick the one with that name.)
-
-![finding model](./images/aia-1-19.png?raw=true "finding model")
-
-<br><br>
-
-9. On the page for the model, click on the *Files and versions* tab. Then find the file *tokenizer.json* and click on it. The file will be too large to display, so click on the *check the raw version* link to see the actual content.
-
-![selecting tokenizer.json](./images/aia-1-20.png?raw=true "selecting tokenizer.json")
-![opening file](./images/aia-1-21.png?raw=true "opening file")
-
-<br><br>
-
-9. You can search for the terms you entered previously with a Ctrl-F or Cmd-F and find the mapping between the term and the id. If you look for "##" you'll see mappings for parts of tokens like you may have seen in lab 2.
-
-![finding terms in file](./images/aia-1-22.png?raw=true "finding terms in files")
-
-<br>
-<p align="center">
-<b>[END OF LAB]</b>
-</p>
-</br></br>
-
-**Lab 4 - Working with transformer models**
-
-**Purpose: In this lab, we’ll see how to interact with various models for different standard tasks**
-
-1. In our repository, we have several different Python programs that utilize transformer models for standard types of LLM tasks. These programs have some random facts from different categories stored in them to use for transformer models to act on.
-
-<br><br>
-
-2. One of the programs is a simple translation example. The file name is *translation.py*. Open the file either by clicking on [**llm/translation.py**](./llm/translation.py) or by entering the command below in the codespace's terminal. 
-
-```
-code translation.py
-```
-<br><br>
-
-3. Take a look at the file contents.  Notice that we are pulling in a specific model ending with 'en-fr'. This is a clue that this model is trained for English to French translation. Let's find out more about it. In a browser, go to *https://huggingface.co/models* and search for the model name 'Helsinki-NLP/opus-mt-en-fr' (or you can just go to huggingface.co/Helsinki-NLP/opus-mt-en-fr).
-
-![model search](./images/aia-1-23.png?raw=true "model search")
-
-<br><br>
-
-3. You can look around on the model card for more info about the model. Notice that it has links to an *OPUS readme* and also links to download its original weights, translation test sets, etc.
-
-<br><br>
-
-4. When done looking around, go back to the repository and look at the rest of the *translation.py* file. What we are doing is loading the model, the tokenizer, and then taking a set of random texts and running them through the tokenizer and model to do the translation. Go ahead and execute the code in the terminal via the command below.
-
-```
-python translation.py
-```
-
-![translation by model](./images/aia-1-24.png?raw=true "translation by model")
- 
-<br><br>
-
-5. There's also an example program for doing classification. The file name is classification.py. Open the file either by clicking on [**llm/classification.py**](./llm/classification.py) or by entering the command below in the codespace's terminal.
-
-
-```
-code classification.py
-```
-
-<br><br>
-
-6. Take a look at the model for this one *joeddav/xlm-roberta-large-xnli* on huggingface.co and read about it. When done, come back to the repo.
-
-<br><br>
-
-7. *classification.py* uses a HuggingFace pipeline to do the main work. Notice it also includes a list of categories as *candidate_labels* that it will use to try and classify the data. Go ahead and run it to see it in action. (This will take awhile to download the model.) After it runs, you will see each topic, followed by the ratings for each category. The scores reflect how well the model thinks the topic fits a category. The highest score reflects which category the model thinks fit best.
-
-```
-python classification.py
-```
-
-![classification by model](./images/aia-1-25.png?raw=true "classification by model")
-
-<br><br>
-
-8. Finally, we have a program to do sentiment analysis. The file name is sentiment.py. Open the file either by clicking on [**llm/sentiment.py**](./llm/sentiment.py) or by entering the command below in the codespace's terminal.
-
-```
-code sentiment.py
-```
-
-<br><br>
-
-9. Again, you can look at the model used by this one *distilbert-base-uncased-finetuned-sst-2-english* in Hugging Face.
-
-<br><br>
-
-10. When ready, go ahead and run this one in the similar way and observe which ones it classified as positive and which as negative and the relative scores.
-
-```
-python sentiment.py
-```
-
-![sentiment by model](./images/aia-1-26.png?raw=true "sentiment by model")
-
-<br><br>
-
-11. If you're done early, feel free to change the texts, the candidate_labels in the previous model, etc. and rerun the models to see the results.
-
-<p align="center">
-<b>[END OF LAB]</b>
-</p>
-</br></br>
-
-**Lab 5 - Fine-tuning Models**
-
-**Purpose: In this lab, we'll see how we can fine-tune a model with a set of data to get better responses in a particular domain.**
-
-1. For this lab, we will build out a starter file into a full fine-tuning example. The starter file is in the ft (for "fine tuning") directory. Change into that directory.
-
-```
-cd /workspaces/aia-day1/ft
-```
-
-<br><br>
-
-2. We'll be tuning a basic model from Hugging Face called *distilbert-base-uncased*. You can see information about that model [here](https://huggingface.co/distilbert/distilbert-base-uncased).
-
-<br><br>
-
-3. We'll be using that model to do sentiment analysis on Amazon product reviews. Sentiment analysis means determining if a review is positive, negative, or other - as we did with one of the examples in Lab 4. The dataset we'll be using for testing and fine-tuning is a *top-level* one on Hugging Face named "Amazon Review Polarity". We can't see that version on Hugging Face, but there is one based on that that you can look at [here](https://huggingface.co/datasets/mteb/amazon_polarity). You can use the *Dataset Viewer* on that page to see the info in the dataset if interested.
-
-![dataset viewer](./images/aia-1-27.png?raw=true "dataset viewer")
-
-<br><br>
-
-4. To build out the actual fine-tuning demo, we'll use a side-by-side compare and merge approach. That means we'll start up an editor with a completed version of the file on the left and the starter version on the right. To do this, run the command below: (the complete code is in [extra/reviews-ft.txt](./extra/reviews-ft.txt)).
-
-
-```
-code -d ../extra/reviews-ft.txt reviews-ft.py
-```
-
-![diff](./images/aia-1-28.png?raw=true "diff")
-
-<br><br>
-
-5. After running this command, you'll see the side-by-side editors. Now we want to merge in the sections that are in the left file into the right file to build out our demo. Before you merge in a section, make sure to glance at the block of code to try and understand what it's doing. Then, when ready, hover over the bar between the two versions and an arrow should display. Click on the arrow to merge that section in.
-
-![review and merge](./images/aia-1-29.png?raw=true "review and merge")
-
-<br><br>
-
-
-6. Proceed down through the remaining differences, quickly reviewing the code to be merged, and then merging it with the arrow. Once you are done, the files should show as the same without any remaining "blocks" of differences. When there are no differences left and you're done, close the diff view by clicking on the "X" in the tab at the top.
-
-![close after merging](./images/aia-1-30.png?raw=true "close after merging")
-
-<br><br>
-
-
-7.  Now we can run the demo with the following command:
-
-```
-python reviews-ft.py
-```
-
-![running](./images/aia-1-31.png?raw=true "running")
-
-<br><br>
-
-8. This will first download the Distilbert model and then run through a subset of reviews to see how well the model does (without any fine-tuning) on determining the sentiment of each review. If this goes by too fast, you can scroll back up to see the reviews and results. You will probably see something in the 40-50% success range.
-
-![no fine tuning run](./images/aia-1-32.png?raw=true "no fine tuning run")
-
-<br><br>
-
-9. Now the model will use some Hugging Face transformer library tools to train the model from the dataset. This part will take probably as much as 5-8 minutes. What you are looking for here is the *loss value* to go down as the fine tuning proceeds. The loss value going down means that the model is getting better at predicting the sentiment as it learns from the dataset examples. 
-
-![fine tuning run](./images/aia-1-33.png?raw=true "fine tuning run")
-
-<br><br>
-
-10. At the end of the fine-tuning, the program will once again run through a test of the model's prediction for sentiments on the reviews. This time, since it has been fine-tuned, it should report success more in the 80-90% range.
-
-![after fine tuning run](./images/aia-1-34.png?raw=true "after fine tuning run")
-
-<br>
-<p align="center">
-<b>[END OF LAB]</b>
-</p>
-</br></br>
-
-**Lab 6 - Working with Vector Databases**
+**Lab 2 - Working with Vector Databases**
 
 **Purpose: In this lab, we’ll learn about how to use vector databases for storing supporting data and doing similarity searches.**
 
@@ -497,7 +191,7 @@ python ../tools/index_pdfs.py
 </br></br>
 
 
-**Lab 7: Building a Complete RAG System**
+**Lab 3: Building a Complete RAG System**
 
 **Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that retrieves relevant context from our vector database and uses an LLM to generate intelligent, grounded answers.**
 
@@ -617,135 +311,288 @@ Notice how the system should say it doesn't have that information (rather than m
 </p>
 </br></br>
 
-**Lab 8: Tuning RAG - Temperature and Context**
+**Lab 4 - Implementing Graph RAG with Neo4j**
 
-**Purpose: In this lab, we'll learn how to control RAG quality by tuning retrieval settings and temperature parameters.**
+**Purpose: In this lab, we'll see how to implement Graph RAG by querying a Neo4j database and using Ollama to generate responses.**
 
-1. You should still be in the *rag* subdirectory. Open the RAG code file:
-
-```
-code rag_code.py
-```
-<br><br>
-
-2. Find line 465 where it says `result = rag.query(question, max_context_chunks=3)`. This controls how many chunks are retrieved. Try changing `3` to `1`, save, and run:
+1. For this lab, we'll need a neo4j instance running. We'll use a docker image for this that is already populated with data for us. There is a shell script named [**neo4j/neo4j-setup.sh**](./neo4j/neo4j-setup.sh) that you can run to start the neo4j container running. Change to the neo4j directory and run the script. This will take a few minutes to build and start. Afterwards you can change back to the *genai* subdirectory. Be sure to include the "&" to run this in the background.
 
 ```
-python rag_code.py
-```
+cd /workspaces/rag/neo4j
 
-Ask: `How can I return a product?`
-
-The answer may be ok, or it may be incomplete, without enough context. Type `quit` to exit.
-
-![Mod](./images/aia-1-49.png?raw=true "Mod")
-
-<br><br>
-
-3. Change `max_context_chunks` to `10`, save, and run again with the same question. Now there may be too much context - it may be confusing or overwhelming. 
-
-![Mod](./images/aia-1-51.png?raw=true "Mod")
-
-<br>
-
-Type `exit`. **Change it back to `3` (the sweet spot) and save it.**
-
-![Mod](./images/aia-1-53.png?raw=true "Mod")
-
-
-<br><br>
-
-4. Now let's experiment with **temperature** - this controls how creative vs consistent the LLM is. Find the `generate()` method around line 236. Change `"temperature": 0.3` to `0.0` (very deterministic). Save the file.
-
-![Temperature setting](./images/aia-1-58.png?raw=true "Temperature setting")
-
-<br><br>
-
-5. Run the system and ask the same question **twice**:
+./neo4j-setup.sh 1 &
 
 ```
-python rag_code.py
-```
 
-Ask twice: `What are the shipping costs?`
-
-The answers should be nearly identical - temperature 0.0 gives consistent results. Type `exit`.
-
-![Low temperature setting](./images/aia-1-59.png?raw=true "Low temperature setting")
-
-<br><br>
-
-6. Change temperature to `1.7` (very creative), save, and run again. Ask the same question twice. Notice the answers may vary quite a bit more - different wording, different order, and not as *professional*. This is less predictable. Type `exit` and change temperature back to `0.3`.
-
-<br>
-
-![Temperature setting](./images/aia-1-57.png?raw=true "Temperature setting")
-
-<br>
-
-![High temperature output](./images/aia-1-56.png?raw=true "High temperature output")
-
-<br>
-
-**Type `exit` and change temperature back to `0.3`.**
-
-<br><br>
-
-7. Now let's see **what the LLM actually sees**. Find the `query()` method around line 317. Right after the line `prompt = self.build_prompt(question, context_chunks)`, add this debug code:
-
-```python
-        # DEBUG: Show what the LLM actually sees
-        print("\n" + "="*60)
-        print("DEBUG: PROMPT SENT TO LLM")
-        print("="*60)
-        print(prompt)
-        print("="*60 + "\n")
-```
-
-Save the file.
-
-![Adding debug output](./images/aia-1-60.png?raw=true "Adding debug output")
-
-<br><br>
-
-8. Save your changes. Run the system and ask a question:
+2. When done, you may see an "INFO Started" or just a "naming to docker.io/library/neo4j:custom" message. The container should then be running. You can just hit *Enter* and do a *docker ps* command to verify you see a "neo4j:custom" container with "Up # seconds" in the STATUS column.
 
 ```
-python rag_code.py
+docker ps
 ```
+![container check](./images/rag35.png?raw=true "container check")
 
-Ask: `How can I return a product?`
-
-<br><br>
-
-9. You'll now see the complete prompt including the system instructions, the 3 retrieved context chunks with sources, and your question. This is the "Augmentation" in RAG - augmenting your question with relevant context.
-
-![Prompt visualization](./images/aia-1-61.png?raw=true "Prompt visualization")
-
-<br><br>
-
-10. Try another question to see how the context changes:
+3. For the next steps, make sure you're back in the *genai* directory. In here, we have a simple Python program to interact with the graph database and query it. The file name is lab4.py. Open the file either by clicking on [**genai/lab4.py**](./genai/lab4.py) or by entering the *code* command below in the codespace's terminal.
 
 ```
-What are the shipping costs?
+cd ../genai
+code lab4.py
 ```
 
-Notice how different chunks are retrieved, but the prompt structure stays the same. The context adapts to each question!
+4. You can look around this file to see how it works. It simply connects to the graph database, does a Cypher query (see the function *query_graph* on line 6), and returns the results. For this one, the graph db was initialized with information that *Ada Lovelace, a Mathematician, worked with Alan Turing, a Computer Scientist*.
 
-<br><br>
+5. When done looking at the code, go ahead and execute the program using the command below. When it's done, you'll be able to see the closest match from the knowledge base data file to the query.
+```
+python lab4.py
+```
+![running lab4 file](./images/rag21.png?raw=true "running lab4 file")
 
-11. When done, type `exit`. You can remove or comment out the debug print statements (add `#` before each line you added in step 7) to clean up the output for production use.
+5. Now, let's update the code to pass the retrieved answer to an LLM to expand on. We'll be using the llama3 model that we setup with Ollama previously. For simplicity, the changes are already in a file in [**extra/lab4-changes.txt**](./extra/lab4-changes.txt) To see and merge the differences, we'll use the codespace's built-in diff/merge functionality. Run the command below.
 
-<br><br>
+```
+code -d /workspaces/rag/extra/lab4-changes.txt /workspaces/rag/genai/lab4.py
+```
 
-**Key Takeaways:**
-- **Chunk count (k)** affects answer quality - too few chunks miss context, too many add noise. 3-5 is often optimal.
-- **Temperature** controls consistency vs creativity - low (0.1) for deterministic answers, high (0.9) for varied responses, medium (0.3-0.5) for balance.
-- **RAG augmentation** adds retrieved context to your prompt before sending to the LLM - visualizing this helps you debug and improve results.
-- The same question can retrieve different context chunks, showing how semantic search adapts to each query.
+6. Once you have this screen up, take a look at the added functionality in the *lab4-changes.txt* file. Here we are passing the answer collected from the knowledge base onto the LLM and asking it to expand on it. To merge the changes, you can click on the arrows between the two files (#1 and #2 in the screenshot) and then close the diff window via the X in the upper corner (#3 in the screenshot).
+
+![lab 4 diff](./images/rag22.png?raw=true "lab 4 diff")
+
+7. Now, you can go ahead and run the updated file again to see what the LLM generates using the added context. Note: This will take several minutes to run.  (If you happen to get an error about not being able to establish a connection, your ollama server may not be running any longer.  If that's the case, you can restart it via the command *"ollama serve &"* and then rerun the python command again.)
+
+```
+python lab4.py
+```
+
+8. After the run is complete, you should see additional data from the LLM related to the additional context with an interesting result!
+
+![lab output 4](./images/rag23.png?raw=true "lab output 4")
 
 <p align="center">
-<b>[END OF LAB]</b>
+**[END OF LAB]**
+</p>
+</br></br>
+
+**Lab 5 - Simplifying RAG with Frameworks and LLMs**
+
+**Purpose: In this lab, we'll see how to simplify Graph RAG by leveraging frameworks and using LLMs to help generate queries.**
+
+1. In our last lab, we hardcoded Cypher queries and worked more directly with the Graph database. Let's see how we can simplify this.
+
+2. First, we need a different graph database. Again, we'll use a docker image for this that is already populated with data for us. Change to the neo4j directory and run the script, but note the different parameter ("2" instead of "1"). This will take a few minutes to build and start. Be sure to add the "&" to run this in the background.
+
+(When it is ready, you may see a "*INFO  [neo4j/########] successfully initialized:*" message or one that says "naming to docker.io/library/neo4j:custom".) Just hit *Enter* and you can change back to the *workspaces/rag* subdirectory. 
+
+```
+cd /workspaces/rag/neo4j
+./neo4j-setup.sh 2 &
+cd ..
+``` 
+
+3. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/rag) when you run these commands.**
+
+```
+npm i -g http-server
+http-server
+```
+
+3. After a moment, you should see a pop-up dialog that you can click on to open a browser to see some of the nodes in the graph. It will take a minute or two to load and then you can zoom in by using your mouse (roll wheel) to see more details.
+
+![running local web server](./images/rag24.png?raw=true "running local web server")
+![loading nodes](./images/rag25.png?raw=true "loading nodes")
+![graph nodes](./images/rag26.png?raw=true "graph nodes")
+
+
+4. When done, you can stop the *http-server* process with *Ctrl-C*. Now, let's go back and create a file to use the langchain pieces and the llm to query our graph database. Change back to the *genai* directory and create a new file named lab5.py.
+```
+cd genai
+code lab5.py
+```
+5. First, add the imports from *langchain* that we need. Put the following lines in the file you just created.
+```
+from langchain.chains import GraphCypherQAChain
+from langchain_community.graphs import Neo4jGraph
+from langchain_community.llms import Ollama
+```
+6. Now, let's add the connection to the graph database. Add the following to the file.
+```
+graph = Neo4jGraph(
+    url="bolt://localhost:7687",
+    username="neo4j",
+    password="neo4jtest",
+    enhanced_schema=True,
+)
+```
+7. Next, let's create the chain instance that will allow us to leverage the LLM to help create the Cypher query and help frame the answer so it makes sense. We'll use Ollama and our llama3 model for both the LLM to create the Cypher queries and the LLM to help frame the answers.
+```
+chain = GraphCypherQAChain.from_llm(
+    cypher_llm=Ollama(model="llama3",temperature=0),
+    qa_llm=Ollama(model="llama3",temperature=0),
+    graph=graph, verbose=True,
+)
+```
+
+8. Finally, let's add the code loop to take in a query and invoke the chain. After you've added this code, save the file.
+```
+while True:
+    query = input("\nQuery: ")
+    if query == "exit":
+        break
+    if query.strip() == "":
+        continue
+    response = chain.invoke({"query": query})
+    print(response["result"])
+```
+
+10. Now, run the code.
+```
+python lab5.py
+```
+11. You can prompt it with queries related to the info in the graph database, like:
+```
+Who starred in Star Trek : Generations?
+Which movies are comedies?
+```
+(Ignore the initial error about "NoneType".)
+
+<p align="center">
+**[END OF LAB]**
+</p>
+</br></br>
+
+**Lab 6 - Implementing Agentic RAG**
+
+**Purpose: In this lab, we’ll see how to setup an agent using RAG with a tool.**
+
+1. In this lab, we'll download a medical dataset, parse it into a vector database, and create an agent with a tool to help us get answers. First,let's take a look at a dataset of information we'll be using for our RAG context. We'll be using a medical Q&A dataset called [**keivalya/MedQuad-MedicalQnADataset**](https://huggingface.co/datasets/keivalya/MedQuad-MedicalQnADataset). You can go to the page for it on HuggingFace.co and view some of it's data or explore it a bit if you want. To get there, either click on the link above in this step or go to HuggingFace.co and search for "keivalya/MedQuad-MedicalQnADataset" and follow the links.
+   
+![dataset on huggingface](./images/rag27.png?raw=true "dataset on huggingface")    
+
+2. Now, let's create the Python file that will pull the dataset, store it in the vector database and invoke an agent with the tool to use it as RAG. First, create a new file for the project.
+```
+code lab6.py
+```
+
+3. Now, add the imports.
+```
+from datasets import load_dataset
+from langchain_community.document_loaders import DataFrameLoader
+from langchain_community.vectorstores import Chroma
+from langchain.text_splitter import CharacterTextSplitter
+from langchain_community.llms import Ollama 
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+from langchain.prompts import ChatPromptTemplate
+from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+from langchain.chains import RetrievalQA
+from langchain.agents import Tool
+from langchain.agents import create_react_agent
+from langchain import hub
+from langchain.agents import AgentExecutor
+```
+
+4. Next, we pull and load the dataset.
+   
+```
+data = load_dataset("keivalya/MedQuad-MedicalQnADataset", split='train')
+data = data.to_pandas()
+data = data[0:100]
+df_loader = DataFrameLoader(data, page_content_column="Answer")
+df_document = df_loader.load()
+```
+
+5. Then, we split the text into chunks and load everything into our Chroma vector database.
+```
+from langchain.text_splitter import CharacterTextSplitter
+text_splitter = CharacterTextSplitter(chunk_size=1250,
+                                      separator="\n",
+                                      chunk_overlap=100)
+texts = text_splitter.split_documents(df_document)
+
+# set some config variables for ChromaDB
+CHROMA_DATA_PATH = "vdb_data/"
+embeddings = FastEmbedEmbeddings()  
+
+# embed the chunks as vectors and load them into the database
+db_chroma = Chroma.from_documents(df_document, embeddings, persist_directory=CHROMA_DATA_PATH)
+```
+6. Set up memory for the chat, and choose the LLM.
+```
+conversational_memory = ConversationBufferWindowMemory(
+    memory_key='chat_history',
+    k=4, #Number of messages stored in memory
+    return_messages=True #Must return the messages in the response.
+)
+
+llm = Ollama(model="llama3",temperature=0.0)
+```
+
+7. Now, define the mechanism to use for the agent and retrieving data. ("qa" = question and answer) 
+```
+qa = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=db_chroma.as_retriever()
+)
+```
+
+8. Define the tool itself (calling the "qa" function we just defined above as the tool).
+from langchain.agents import Tool
+
+```
+#Defining the list of tool objects to be used by LangChain.
+tools = [
+   Tool(
+       name='Medical KB',
+       func=qa.run,
+       description=(
+           'use this tool when answering medical knowledge queries to get '
+           'more information about the topic'
+       )
+   )
+]
+```
+
+8. Create the agent using the LangChain project *hwchase17/react-chat*.
+```
+prompt = hub.pull("hwchase17/react-chat")
+agent = create_react_agent(
+   tools=tools,
+   llm=llm,
+   prompt=prompt,
+)
+
+# Create an agent executor by passing in the agent and tools
+from langchain.agents import AgentExecutor
+agent_executor = AgentExecutor(agent=agent,
+                               tools=tools,
+                               verbose=True,
+                               memory=conversational_memory,
+                               max_iterations=30,
+                               max_execution_time=600,
+                               #early_stopping_method='generate',
+                               handle_parsing_errors=True
+                               )
+```
+
+9. Add the input processing loop.
+```
+while True:
+    query = input("\nQuery: ")
+    if query == "exit":
+        break
+    if query.strip() == "":
+        continue
+    agent_executor.invoke({"input": query})
+```
+10. Now, **save the file** and run the code.
+```
+python lab6.py
+```
+11. You can prompt it with queries related to the info in the dataset, like the one below. (You can ignore errors about Attributes or invalid options.)
+```
+I have a patient that may have Botulism. How can I confirm the diagnosis?
+```
+
+<p align="center">
+**[END OF LAB]**
 </p>
 </br></br>
 

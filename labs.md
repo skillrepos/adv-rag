@@ -1,7 +1,7 @@
 # Gen AI: Understanding and Using RAG
 ## Making LLMs smarter by pairing your data with Gen AI
 ## Session labs 
-## Revision 2.5 - 04/21/25
+## Revision 3.0 - 12/25/25
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 

@@ -42,18 +42,21 @@ code lab1.py
 4. Modify the prompt on line 17 to ask a highly specific question about OmniTech's internal procedures. This tests the LLM's "base" knowledge:
 
 ```python
-"prompt": "How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?",
+"prompt": "How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?:\n\n",
 ```
 
 ![prompt 1](./images/ragv2-1.png?raw=true "prompt 1") 
 
 <br><br>
 
-5. Save the file (CTRL+S or CMD+S) and run it. Observe the result: The AI will likely give a generic answer (like "usually 5-10 seconds") or admit it doesn't know the specific OmniTech policy.
+5. Save the file (CTRL+S or CMD+S) and run it. Observe the result: The AI will likely give a generic answer (like "usually 5-10 seconds") or admit it doesn't have enough information or details.
 
 ```bash
 python lab1.py
 ```
+
+
+![first run](./images/ragv2-3.png?raw=true "first run") 
 
 <br><br>
 
@@ -61,17 +64,22 @@ python lab1.py
 
 ```python
 # Read the proprietary OmniTech documentation snippet
-with open("../data/omnitech_context.txt", "r") as file:
+with open("../omnitech_context.txt", "r") as file:
     omnitech_info = file.read()
 ```
+
+![read context](./images/ragv2-5.png?raw=true "read context") 
 
 <br><br>
 
 7. Update the prompt to include this context. Change the "prompt" line to use an f-string that injects the documentation:
 
 ```python
-"prompt": f"Using the OmniTech Manuals below, answer the user question.\n\nManuals: {omnitech_info}\n\nQuestion: How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?",
+"prompt": f"Using the OmniTech Manuals below, answer the user question.\n\nManuals: {omnitech_info}\n\nQuestion: How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?:\n\n",
 ```
+
+![prompt 2](./images/ragv2-4.png?raw=true "prompt 2") 
+
 
 <br><br>
 
@@ -84,6 +92,9 @@ with open("../data/omnitech_context.txt", "r") as file:
 ```bash
 python lab1.py
 ```
+
+![run 2](./images/ragv2-6.png?raw=true "run 2") 
+
 <br><br>
 
 10. Verify the success: Notice how the AI now provides the exact "10 seconds" requirement and the "January 31" holiday deadline found in the context.

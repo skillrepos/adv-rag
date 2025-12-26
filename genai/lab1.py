@@ -13,7 +13,7 @@ headers = {
 
 # Define the input for the LLM
 data = {
-    "model": "llama3.2",  # The local model you pulled
+    "model": "llama3.2:3b",  # The local model you pulled
     "prompt": f"PROMPT GOES HERE:\n\n",
     "stream": False
 }

@@ -1,3 +1,21 @@
 curl -fsSL https://ollama.com/install.sh | sh
-# ollama serve &
+ollama serve &
+pid=$!
+
+while ! pgrep -f "ollama"; do
+  sleep 0.1
+done
+
+sleep 15
+ollama pull llama3.2
+ollama list
+
+
+# Warmup the model for faster first responses
+echo "Warming up llama3.2 model..."
+bash "$(dirname "$0")/warmup.sh" || echo "Model warmup failed, but continuing anyway"
+
+# kill ollama process here since it runs in a separate shell
+# startup command will restart it
+pkill -9 "ollama"
 

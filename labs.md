@@ -169,17 +169,17 @@ You can also pass search queries directly on the command line with the *--query*
   python ../tools/search.py --query "convert text to numbers" --target code
 ```
 
-![Running search](./images/aia-1-37.png?raw=true "Running search")
+![Running search](./images/ragv2-8.png?raw=true "Running search")
 
 <br><br>
 
 7.  Let's create a vector database based off of the PDF files. Just run the indexer for the pdf file.
 
 ```
-python ../tools/index_pdfs.py
+python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 ```
 
-![Indexing PDFs](./images/aia-1-38.png?raw=true "Indexing PDFs")
+![Indexing PDFs](./images/ragv2-9.png?raw=true "Indexing PDFs")
 
 <br><br>
 
@@ -191,11 +191,11 @@ python ../tools/index_pdfs.py
   python ../tools/search.py --query "exchange damaged item" --target pdfs
 ```
 
-![PDF search](./images/aia-1-40.png?raw=true "PDF search")
+![PDF search](./images/ragv2-10.png?raw=true "PDF search")
 
 <br><br>
 
-8. Keep in mind that this is not trying to intelligently answer your prompts at this point. This is a simple semantic search to find related chunks. In lab 7, we'll add in the LLM to give us better responses. 
+8. Keep in mind that this is not trying to intelligently answer your prompts at this point. This is a simple semantic search to find related chunks. In lab 3, we'll add in the LLM to give us better responses. 
 
 <br>
 <p align="center">

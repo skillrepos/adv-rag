@@ -1,7 +1,7 @@
 # Gen AI: Understanding and Using RAG
 ## Making LLMs smarter by pairing your data with Gen AI
 ## Session labs 
-## Revision 3.0 - 12/25/25
+## Revision 3.1 - 12/26/25
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -11,17 +11,17 @@
 
 **Purpose: In this lab, we’ll see a basic example of augmenting a prompt by retrieving context from a data file.**
 
-1. In our repository, we have a set of Python programs to help us illustrate and work with concepts in the labs. The first set are in the *genai* subdirectory. Go to the *TERMINAL* tab in the bottom part of your codespace and change into that directory.
+1. In our repository, we have a set of Python programs to help us illustrate and work with concepts in the labs. The first set are in the *code* subdirectory. Go to the *TERMINAL* tab in the bottom part of your codespace and change into that directory.
 
 ```
-cd genai
+cd code
 ```
 <br><br>
 
 2. For this lab, we will simulate "retrieving" data from the Troubleshooting and Security manuals for a fictitious company called "Omnitech". Run the command below to create a text-based context file using information from the provided documents.
 
 ```
-cat <<EOF > ../omnitech_context.txt
+cat <<EOF > ../data/omnitech_context.txt
 OmniTech Force Restart: Press and hold the Power button for exactly 10 seconds.
 OmniTech Password Policy (v5.2): Accounts created after Jan 1, 2024, must be 8+ chars and cannot contain dictionary words like 'omnitech'.
 OmniTech Holiday Returns: Items bought Nov 1 - Dec 25 can be returned until Jan 31.
@@ -64,11 +64,11 @@ python lab1.py
 
 ```python
 # Read the proprietary OmniTech documentation snippet
-with open("../omnitech_context.txt", "r") as file:
+with open("../data/omnitech_context.txt", "r") as file:
     omnitech_info = file.read()
 ```
 
-![read context](./images/ragv2-5.png?raw=true "read context") 
+![read context](./images/ragv2-7.png?raw=true "read context") 
 
 <br><br>
 
@@ -93,11 +93,11 @@ with open("../omnitech_context.txt", "r") as file:
 python lab1.py
 ```
 
-![run 2](./images/ragv2-6.png?raw=true "run 2") 
-
 <br><br>
 
 10. Verify the success: Notice how the AI now provides the exact "10 seconds" requirement and the "January 31" holiday deadline found in the context.
+
+![run 2](./images/ragv2-6.png?raw=true "run 2") 
 
 <br><br>
 

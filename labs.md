@@ -21,7 +21,7 @@ cd genai
 2. For this lab, we will simulate "retrieving" data from the Troubleshooting and Security manuals for a fictitious company called "Omnitech". Run the command below to create a text-based context file using information from the provided documents.
 
 ```
-cat <<EOF > ../data/omnitech_context.txt
+cat <<EOF > ../omnitech_context.txt
 OmniTech Force Restart: Press and hold the Power button for exactly 10 seconds.
 OmniTech Password Policy (v5.2): Accounts created after Jan 1, 2024, must be 8+ chars and cannot contain dictionary words like 'omnitech'.
 OmniTech Holiday Returns: Items bought Nov 1 - Dec 25 can be returned until Jan 31.
@@ -44,6 +44,8 @@ code lab1.py
 ```python
 "prompt": "How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?",
 ```
+
+![prompt 1](./images/ragv2-1.png?raw=true "prompt 1") 
 
 <br><br>
 

@@ -1,4 +1,4 @@
-# Highly-commented version of lab6_hybrid.py — comments explain flow, intent, and mechanics.
+# 
 # The code implements a simple hybrid RAG (Retrieval-Augmented Generation) demo that:
 #  1. Connects to a ChromaDB persistent collection of text chunks extracted from PDFs.
 #  2. Builds a BM25 keyword index over those chunks.
@@ -6,7 +6,7 @@
 #     and a fused "hybrid" ranking using Reciprocal Rank Fusion (RRF).
 #  4. Uses an LLM (Ollama HTTP API) to generate an answer using retrieved context.
 #
-# Keep in mind: comments are intentionally verbose to explain reasoning and data flow.
+
 import requests
 from typing import List, Dict
 from rank_bm25 import BM25Okapi
@@ -376,11 +376,7 @@ def run_demo():
         show_chunks(chunks, method)
         print(f"    {result_text}")
 
-    # A short textual insight printed to the console for humans reading the demo.
-    print("\n" + "─" * 70)
-    print("KEY INSIGHT: Semantic search found 'refund' content even though")
-    print("the user said 'money back'. Keyword search matched unrelated docs.")
-    print("─" * 70)
+
 
     # PART 2: Demonstrate the full RAG pipeline — retrieve context and use LLM to answer.
     print("\n" + "=" * 70)
@@ -401,3 +397,4 @@ def run_demo():
 # Standard Python idiom to run demo when script executed directly.
 if __name__ == "__main__":
     run_demo()
+

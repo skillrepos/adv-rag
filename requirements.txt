@@ -33,5 +33,7 @@ py2neo>=2021.2.4
 matplotlib>=3.6.0
 
 # LangChain packages
-langchain>=1.2.0
-langchain-core>=1.2.5
+langchain-community>=0.4.1
+langchain-neo4j>=0.6.0
+langchain-ollama>=1.0.1
+

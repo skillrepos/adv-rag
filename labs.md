@@ -1,7 +1,7 @@
 # Gen AI: Understanding and Using RAG
 ## Making LLMs smarter by pairing your data with Gen AI
 ## Session labs 
-## Revision 3.1 - 12/26/25
+## Revision 3.2 - 12/27/25
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -418,7 +418,7 @@ http-server
 
 4. When done, you can stop the *http-server* process with *Ctrl-C*. Now, let's go back and create a file to use the langchain pieces and the llm to query our graph database. Change back to the *genai* directory and create a new file named lab5.py.
 ```
-cd genai
+cd code
 code lab5.py
 ```
 5. First, add the imports from *langchain* that we need. Put the following lines in the file you just created.
@@ -617,5 +617,5 @@ I have a patient that may have Botulism. How can I confirm the diagnosis?
 </p>
 
 <p align="center">
-<b>(c) 2025 Tech Skills Transformations and Brent C. Laster. All rights reserved.</b>
+<b>(c) 2026 Tech Skills Transformations and Brent C. Laster. All rights reserved.</b>
 </p>

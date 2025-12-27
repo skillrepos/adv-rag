@@ -1,0 +1,403 @@
+# Highly-commented version of lab6_hybrid.py — comments explain flow, intent, and mechanics.
+# The code implements a simple hybrid RAG (Retrieval-Augmented Generation) demo that:
+#  1. Connects to a ChromaDB persistent collection of text chunks extracted from PDFs.
+#  2. Builds a BM25 keyword index over those chunks.
+#  3. Provides semantic (vector) search via Chroma, keyword search via BM25,
+#     and a fused "hybrid" ranking using Reciprocal Rank Fusion (RRF).
+#  4. Uses an LLM (Ollama HTTP API) to generate an answer using retrieved context.
+#
+# Keep in mind: comments are intentionally verbose to explain reasoning and data flow.
+import requests
+from typing import List, Dict
+from rank_bm25 import BM25Okapi
+from chromadb import PersistentClient
+from chromadb.config import Settings, DEFAULT_TENANT, DEFAULT_DATABASE
+import re
+
+# ANSI color codes for terminal output highlighting.
+# These are used to color the "Top result" lines when printing demo output.
+ANSI_RED = "\033[91m"
+ANSI_GREEN = "\033[92m"
+ANSI_RESET = "\033[0m"
+
+# Configuration constants:
+# - CHROMA_PATH: file-system path where ChromaDB persistent data is stored.
+# - COLLECTION_NAME: name of the Chroma collection that holds document chunks + metadata.
+# - OLLAMA_URL / OLLAMA_MODEL: endpoint and model for generation (Ollama local API in this demo).
+CHROMA_PATH = "./chroma_db"
+COLLECTION_NAME = "pdf_documents"
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "llama3.2:3b"
+
+# TEST_CASES provides sample queries and expected document sources to exercise the
+# retrieval behavior (used by demonstration helpers). This is illustrative and not required
+# by the core logic.
+TEST_CASES = [
+    # SEMANTIC WINS: vocabulary mismatch cases
+    {
+        "question": "How do I get my money back for a purchase?",
+        "expected_source": "OmniTech_Returns_Policy_2024.pdf",
+        "why": "'money back' vs 'refund' - different words, same meaning"
+    },
+    {
+        "question": "How do I send something back?",
+        "expected_source": "OmniTech_Returns_Policy_2024.pdf",
+        "why": "'send back' vs 'return' - semantic understands intent"
+    },
+    {
+        "question": "My thing is broken, help!",
+        "expected_source": "OmniTech_Device_Troubleshooting_Manual.pdf",
+        "why": "'thing broken' vs 'device malfunction' - vague user language"
+    },
+    {
+        "question": "What's the warranty on products?",
+        "expected_source": "OmniTech_Returns_Policy_2024.pdf",
+        "why": "'warranty' concept understood by semantic search"
+    },
+    # KEYWORD HELPS: exact terminology
+    {
+        "question": "What is the Pro-Series equipment return policy?",
+        "expected_source": "OmniTech_Returns_Policy_2024.pdf",
+        "why": "'Pro-Series' is exact terminology - keyword ensures match"
+    },
+]
+
+
+class HybridRAG:
+    """
+    HybridRAG encapsulates retrieval logic and LLM generation.
+    Responsibilities:
+      - Connect to Chroma persistent DB and load chunks + metadata.
+      - Build a BM25 index for fast keyword matching.
+      - Expose semantic_search (vector-based), keyword_search (BM25), hybrid_search (RRF).
+      - Create prompts and call an LLM endpoint to produce a final answer given retrieved context.
+    """
+
+    def __init__(self):
+        # Instance attributes:
+        # - collection: Chroma collection object used for vector queries
+        # - documents: list of raw text chunks loaded from the collection
+        # - metadatas: parallel list of metadata dicts aligned with `documents`
+        # - bm25: BM25Okapi instance built on tokenized `documents` for keyword search
+        self.collection = None
+        self.documents: List[str] = []
+        self.metadatas: List[Dict] = []
+        self.bm25 = None
+
+        # Connect to Chroma and build the BM25 index right away so the instance is ready.
+        self._connect_db()
+        self._build_bm25()
+
+    def _connect_db(self):
+        """
+        Connect to a PersistentClient-backed ChromaDB collection and load documents + metadata.
+        Steps:
+         1. Instantiate PersistentClient with the configured path and defaults.
+         2. Get the collection by name (raises inside Chroma if collection missing).
+         3. Fetch stored documents and their metadatas into instance lists.
+        After this call, `self.collection`, `self.documents`, and `self.metadatas` are populated.
+        """
+        print("Connecting to ChromaDB...")
+        client = PersistentClient(path=CHROMA_PATH, settings=Settings(),
+                                  tenant=DEFAULT_TENANT, database=DEFAULT_DATABASE)
+        # Request the named collection from the Chroma client.
+        self.collection = client.get_collection(name=COLLECTION_NAME)
+
+        # Pull the persisted documents and their metadata into memory.
+        data = self.collection.get(include=["documents", "metadatas"])
+        self.documents = data["documents"]
+        self.metadatas = data["metadatas"]
+
+        # Report how many text chunks were loaded (useful for debugging / sanity checks).
+        print(f"Loaded {len(self.documents)} chunks")
+
+    def _build_bm25(self):
+        """
+        Build a BM25 index for keyword-based retrieval:
+         - Tokenize each document chunk using a simple regex that captures word tokens.
+         - Lowercase tokens for case-insensitive matching.
+         - Create the BM25Okapi instance and assign to self.bm25 for later queries.
+        Note: BM25 expects tokenized documents as lists of tokens.
+        """
+        print("Building BM25 index...")
+        tokenized = [re.findall(r'\b\w+\b', doc.lower()) for doc in self.documents]
+        self.bm25 = BM25Okapi(tokenized)
+
+    def semantic_search(self, query: str, k: int = 3) -> List[Dict]:
+        """
+        Perform a semantic (vector) search using Chroma's query API.
+
+        Input:
+          - query: string user query
+          - k: number of results to return
+
+        Output:
+          - List of dicts: [{"content": text_chunk, "metadata": metadata_dict, "score": similarity_score}, ...]
+
+        Mechanics:
+          - Call `self.collection.query` with query_texts list and ask for distances.
+          - Chroma returns distances (lower means more similar); convert to a similarity-like score:
+              score = 1 / (1 + distance)  — simple monotonic transform so higher is better.
+          - Build a list of results preserving content + metadata + score for downstream use.
+        """
+        results = self.collection.query(query_texts=[query], n_results=k,
+                                        include=["documents", "metadatas", "distances"])
+        # results is organized as nested lists: results["documents"][0][i] etc.
+        return [
+            {
+                "content": results["documents"][0][i],
+                "metadata": results["metadatas"][0][i],
+                # transform distance to a bounded similarity-like score
+                "score": 1.0 / (1.0 + results["distances"][0][i])
+            }
+            for i in range(len(results["documents"][0]))
+        ]
+
+    def keyword_search(self, query: str, k: int = 3) -> List[Dict]:
+        """
+        Perform a BM25 keyword-based search over the pre-built BM25 index.
+
+        Steps:
+          - Tokenize the query using the same tokenizer used for documents.
+          - Ask BM25 for scores for each document with `.get_scores(tokens)`.
+          - Select top-k indices by score (descending).
+          - Only return documents that have a positive (non-zero) BM25 score.
+        Output:
+          - List of dicts similar to semantic_search with 'content', 'metadata', and raw 'score'.
+        """
+        tokens = re.findall(r'\b\w+\b', query.lower())
+        scores = self.bm25.get_scores(tokens)  # array of float scores aligned with self.documents
+        top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
+        # Construct results, filtering out zero-scored entries (no keyword match).
+        return [
+            {"content": self.documents[i], "metadata": self.metadatas[i], "score": scores[i]}
+            for i in top_idx if scores[i] > 0
+        ]
+
+    def hybrid_search(self, query: str, k: int = 3) -> List[Dict]:
+        """
+        Combine semantic and keyword rankings using a simple Reciprocal Rank Fusion (RRF).
+
+        RRF approach used here:
+          - Retrieve more candidates from both semantic and keyword (k*2 each).
+          - For each list, assign a small reciprocal weight based on rank: 1 / (60 + rank).
+            (The constant 60 is chosen arbitrarily to keep scores small; it reduces the impact
+             of rank position while still favoring higher-ranked items.)
+          - Use the object's id(content) as a key to detect identical chunks appearing in both lists.
+          - Sum RRF scores for duplicates to produce a combined score.
+          - Return top-k results sorted by the combined RRF score.
+
+        Output:
+          - List of result dicts (same structure as semantic/keyword).
+        """
+        # Get a larger set of candidates from each method to give RRF more choices.
+        semantic = self.semantic_search(query, k=k*2)
+        keyword = self.keyword_search(query, k=k*2)
+
+        # rrf maps a unique key -> {"score": combined_score, "result": result_dict}
+        rrf = {}
+
+        # Add semantic candidates with weights derived from their rank position.
+        for rank, r in enumerate(semantic, 1):
+            # Use id(content) as a cheap unique key for content identity.
+            key = id(r["content"])
+            # Initialize combined score entry for this chunk.
+            rrf[key] = {"score": 1 / (60 + rank), "result": r}
+
+        # Add keyword candidates, incrementing score if the chunk already exists.
+        for rank, r in enumerate(keyword, 1):
+            key = id(r["content"])
+            if key in rrf:
+                rrf[key]["score"] += 1 / (60 + rank)
+            else:
+                rrf[key] = {"score": 1 / (60 + rank), "result": r}
+
+        # Sort combined results by the aggregated RRF score (descending) and return top-k result dicts.
+        sorted_results = sorted(rrf.values(), key=lambda x: x["score"], reverse=True)
+        return [item["result"] for item in sorted_results[:k]]
+
+    def generate_answer(self, question: str, context_chunks: List[Dict]) -> str:
+        """
+        Build a prompt with retrieved context and call an LLM to generate an answer.
+
+        Input:
+          - question: original user question string
+          - context_chunks: list of retrieval results (dicts with 'content' and 'metadata')
+
+        Prompt construction:
+          - For each context chunk, include a short source line extracted from metadata and the chunk content.
+          - Concatenate chunks separated by blank lines to form the DOCUMENTATION block.
+          - Ask the model to "Answer based only on the documentation above."
+
+        LLM call:
+          - Send a JSON POST to the configured OLLAMA_URL with fields "model" and "prompt".
+          - Wait up to 120s for a response (timeout).
+          - Return the "response" field from JSON if HTTP OK, otherwise return "Error".
+
+        Note:
+          - This function assumes the Ollama endpoint returns JSON with a "response" field.
+        """
+        # Build a readable context block with sources to make provenance explicit.
+        context = "\n\n".join([
+            f"[Source: {c['metadata'].get('source', '').split('/')[-1]}]\n{c['content']}"
+            for c in context_chunks
+        ])
+        prompt = f"""Based on the following documentation, answer the user's question.
+
+DOCUMENTATION:
+{context}
+
+QUESTION: {question}
+
+Answer based only on the documentation above."""
+
+        # Call the Ollama generation API.
+        response = requests.post(OLLAMA_URL, json={
+            "model": OLLAMA_MODEL, "prompt": prompt, "stream": False
+        }, timeout=120)
+
+        # If the request was successful, extract and return the textual response; otherwise surface an error.
+        return response.json().get("response", "").strip() if response.ok else "Error"
+
+    def rag_query(self, question: str, method: str = "hybrid") -> Dict:
+        """
+        Convenience wrapper implementing the full RAG pipeline for a single query:
+          1. Retrieve: choose method in ["semantic", "keyword", "hybrid"] to get context chunks.
+          2. Augment: pass chunks to generate_answer to produce a final answer.
+          3. Return: dictionary with the generated answer and a list of source filenames.
+
+        Output: {"answer": <str>, "sources": [<source-file>, ...]}
+        """
+        if method == "semantic":
+            chunks = self.semantic_search(question)
+        elif method == "keyword":
+            chunks = self.keyword_search(question)
+        else:
+            chunks = self.hybrid_search(question)
+
+        answer = self.generate_answer(question, chunks)
+        return {
+            "answer": answer,
+            # Normalize metadata source values to filenames for display
+            "sources": [c["metadata"].get("source", "").split("/")[-1] for c in chunks]
+        }
+
+
+def check_retrieval(rag, question, expected):
+    """
+    Testing helper that runs each retrieval method and checks whether the expected document
+    appears as the top result.
+
+    Returns a dict mapping method -> {"top_correct": bool, "top_source": str}
+    This function demonstrates how to programmatically evaluate retrieval accuracy.
+    """
+    results = {}
+    for method in ["semantic", "keyword", "hybrid"]:
+        if method == "semantic":
+            chunks = rag.semantic_search(question, k=3)
+        elif method == "keyword":
+            chunks = rag.keyword_search(question, k=3)
+        else:
+            chunks = rag.hybrid_search(question, k=3)
+
+        # Extract just the source filename from metadata for easier comparisons.
+        sources = [c["metadata"].get("source", "").split("/")[-1] for c in chunks]
+        top_source = sources[0] if sources else "NONE"
+        results[method] = {"top_correct": expected in top_source, "top_source": top_source}
+    return results
+
+
+def show_chunks(chunks, method, max_chars=200):
+    """
+    Pretty-print the top retrieved chunks for a method.
+
+    Prints:
+      - Method header
+      - Top N chunk previews (default 2): source filename, score, and a short preview
+    The preview is truncated to max_chars and newlines replaced with spaces for readability.
+    """
+    print(f"\n  {method.upper()} results:")
+    for i, chunk in enumerate(chunks[:2], 1):  # show only top 2 for compactness
+        source = chunk["metadata"].get("source", "unknown").split("/")[-1]
+        score = chunk.get("score", 0)
+        preview = chunk["content"][:max_chars].replace("\n", " ")
+        if len(chunk["content"]) > max_chars:
+            preview += "..."
+        print(f"    {i}. [{source}] (score: {score:.3f})")
+        print(f"       \"{preview}\"")
+
+
+def run_demo():
+    """
+    Main demo driver that:
+      - Instantiates HybridRAG (connect + build index).
+      - Runs a sample query across semantic, keyword, and hybrid methods.
+      - Prints retrieved chunks and a colored "Top result" correctness line; green for correct, red for wrong.
+      - Finally runs the full RAG pipeline and prints the generated answer and sources.
+    """
+    print("=" * 70)
+    print("HYBRID RAG DEMONSTRATION")
+    print("=" * 70)
+
+    # Create the RAG system; this triggers DB connection and BM25 construction.
+    rag = HybridRAG()
+
+    # PART 1: Demonstrate the behavior of different retrieval methods on the same query.
+    print("\n" + "=" * 70)
+    print("PART 1: Query with different search types")
+    print("=" * 70)
+    print("\nUser query: \"How do I get my money back for a purchase?\"")
+
+    question = "How do I get my money back for a purchase?"
+    expected = "OmniTech_Returns_Policy_2024.pdf"
+
+    # Iterate through methods and print results with colored top-result correctness.
+    for method in ["semantic", "keyword", "hybrid"]:
+        # Select the retrieval function and ask for top-2 chunks.
+        if method == "semantic":
+            chunks = rag.semantic_search(question, k=2)
+        elif method == "keyword":
+            chunks = rag.keyword_search(question, k=2)
+        else:
+            chunks = rag.hybrid_search(question, k=2)
+
+        # Extract the top source filename (or "NONE" if no results).
+        top_source = chunks[0]["metadata"].get("source", "").split("/")[-1] if chunks else "NONE"
+        correct = expected in top_source
+        symbol = "✓ CORRECT" if correct else "✗ WRONG"
+
+        # Color the "Top result" line green when correct, red when wrong using ANSI codes.
+        if correct:
+            result_text = f"{ANSI_GREEN}→ Top result: {symbol}{ANSI_RESET}"
+        else:
+            result_text = f"{ANSI_RED}→ Top result: {symbol}{ANSI_RESET}"
+
+        # Show top chunk previews and then print the colored correctness line.
+        show_chunks(chunks, method)
+        print(f"    {result_text}")
+
+    # A short textual insight printed to the console for humans reading the demo.
+    print("\n" + "─" * 70)
+    print("KEY INSIGHT: Semantic search found 'refund' content even though")
+    print("the user said 'money back'. Keyword search matched unrelated docs.")
+    print("─" * 70)
+
+    # PART 2: Demonstrate the full RAG pipeline — retrieve context and use LLM to answer.
+    print("\n" + "=" * 70)
+    print("PART 2: Complete RAG Pipeline (Retrieve → Augment → Generate)")
+    print("=" * 70)
+    print("\nUsing the same question with hybrid search + LLM generation...")
+    result = rag.rag_query(question, method="hybrid")
+
+    # Print the generated answer and the list of provenance sources used.
+    print("─" * 70)
+    print("GENERATED ANSWER:")
+    print("─" * 70)
+    print(result["answer"])
+    print("─" * 70)
+    print(f"Sources used: {result['sources']}")
+
+
+# Standard Python idiom to run demo when script executed directly.
+if __name__ == "__main__":
+    run_demo()

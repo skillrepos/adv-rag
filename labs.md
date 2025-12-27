@@ -328,10 +328,12 @@ Notice how the system should say it doesn't have that information (rather than m
 
 **Purpose: In this lab, we'll see how to implement Graph RAG by querying a Neo4j database and using Ollama to generate responses.**
 
-1. For this lab, we'll need a neo4j instance running. We'll use a docker image for this that is already populated with data for us. There is a shell script named [**neo4j/neo4j-setup.sh**](./neo4j/neo4j-setup.sh) that you can run to start the neo4j container running. Change to the neo4j directory and run the script. This will take a few minutes to build and start. Afterwards you can change back to the *code* subdirectory. Be sure to include the "&" to run this in the background.
+1. For this lab, we'll need a neo4j instance running. We'll use a docker image for this that is already populated with data for us. There is a shell script named [**neo4j/neo4j-setup.sh**](./neo4j/neo4j-setup.sh) that you can run to start the neo4j container running. Change to the neo4j directory, set an environment variable for the DOCKER version and run the script. This will take a few minutes to build and start. Afterwards you can change back to the *code* subdirectory. Be sure to include the "&" to run this in the background.
 
 ```
 cd /workspaces/rag/neo4j
+
+export DOCKER_API_VERSION=1.43
 
 ./neo4j-setup.sh 1 &
 
@@ -342,7 +344,7 @@ cd /workspaces/rag/neo4j
 ```
 docker ps
 ```
-![container check](./images/rag35.png?raw=true "container check")
+![container check](./images/ragv2-14.png?raw=true "container check")
 
 3. For the next steps, make sure you're back in the *genai* directory. In here, we have a simple Python program to interact with the graph database and query it. The file name is lab4.py. Open the file either by clicking on [**genai/lab4.py**](./genai/lab4.py) or by entering the *code* command below in the codespace's terminal.
 
@@ -362,7 +364,7 @@ python lab4.py
 5. Now, let's update the code to pass the retrieved answer to an LLM to expand on. We'll be using the llama3 model that we setup with Ollama previously. For simplicity, the changes are already in a file in [**extra/lab4-changes.txt**](./extra/lab4-changes.txt) To see and merge the differences, we'll use the codespace's built-in diff/merge functionality. Run the command below.
 
 ```
-code -d /workspaces/rag/extra/lab4-changes.txt /workspaces/rag/genai/lab4.py
+code -d /workspaces/rag/extra/lab4-changes.txt /workspaces/rag/code/lab4.py
 ```
 
 6. Once you have this screen up, take a look at the added functionality in the *lab4-changes.txt* file. Here we are passing the answer collected from the knowledge base onto the LLM and asking it to expand on it. To merge the changes, you can click on the arrows between the two files (#1 and #2 in the screenshot) and then close the diff window via the X in the upper corner (#3 in the screenshot).

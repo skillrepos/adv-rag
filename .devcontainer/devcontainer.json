@@ -1,4 +1,4 @@
-{
+{{
    // "build": { "dockerfile": "Dockerfile" },
     "image": "mcr.microsoft.com/devcontainers/base:bookworm",
     "hostRequirements": {
@@ -21,6 +21,18 @@
     "customizations": {
         "vscode": {
             "settings": {
+                // Core VS Code suggestion popups
+                "editor.parameterHints.enabled": false,
+                "editor.suggestOnTriggerCharacters": false,
+                "editor.quickSuggestions": {
+                  "other": false,
+                  "comments": false,
+                  "strings": false
+                },
+                // Terminal-specific suggestion controls
+                "terminal.integrated.suggest.enabled": false,
+                "github.copilot.terminal.enable": false,
+                "editor.quickSuggestionsDelay": 999999999,
                 "python.terminal.activateEnvInCurrentTerminal": true,
                 "python.defaultInterpreterPath": ".venv/bin/python",
                 "github.copilot.enable": {

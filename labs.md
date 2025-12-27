@@ -1,7 +1,7 @@
 # Gen AI: Understanding and Using RAG
 ## Making LLMs smarter by pairing your data with Gen AI
 ## Session labs 
-## Revision 3.2 - 12/27/25
+## Revision 3.3 - 12/27/25
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -339,12 +339,16 @@ export DOCKER_API_VERSION=1.43
 
 ```
 
+<br><br>
+
 2. When done, you may see an "INFO Started" or just a "naming to docker.io/library/neo4j:custom" message. The container should then be running. You can just hit *Enter* and do a *docker ps* command to verify you see a "neo4j:custom" container with "Up # seconds" in the STATUS column.
 
 ```
 docker ps
 ```
 ![container check](./images/ragv2-14.png?raw=true "container check")
+
+<br><br>
 
 3. For the next steps, make sure you're back in the *code* directory. In here, we have a simple Python program to interact with the graph database and query it. The file name is lab4.py. Open the file either by clicking on [**code/lab4.py**](./code/lab4.py) or by entering the *code* command below in the codespace's terminal.
 
@@ -353,7 +357,11 @@ cd ../code
 code lab4.py
 ```
 
+<br><br>
+
 4. You can look around this file to see how it works. It simply connects to the graph database, does a Cypher query (see the function *query_graph* on line 6), and returns the results. For this one, the graph db was initialized with information that *Ada Lovelace, a Mathematician, worked with Alan Turing, a Computer Scientist*.
+
+<br><br>
 
 5. When done looking at the code, go ahead and execute the program using the command below. When it's done, you'll be able to see the closest match from the knowledge base data file to the query.
 ```
@@ -361,21 +369,29 @@ python lab4.py
 ```
 ![running lab4 file](./images/rag21.png?raw=true "running lab4 file")
 
+<br><br>
+
 5. Now, let's update the code to pass the retrieved answer to an LLM to expand on. We'll be using the llama3 model that we setup with Ollama previously. For simplicity, the changes are already in a file in [**extra/lab4-changes.txt**](./extra/lab4-changes.txt) To see and merge the differences, we'll use the codespace's built-in diff/merge functionality. Run the command below.
 
 ```
 code -d /workspaces/rag/extra/lab4-changes.txt /workspaces/rag/code/lab4.py
 ```
 
+<br><br>
+
 6. Once you have this screen up, take a look at the added functionality in the *lab4-changes.txt* file. Here we are passing the answer collected from the knowledge base onto the LLM and asking it to expand on it. To merge the changes, you can click on the arrows between the two files (#1 and #2 in the screenshot) and then close the diff window via the X in the upper corner (#3 in the screenshot).
 
 ![lab 4 diff](./images/rag22.png?raw=true "lab 4 diff")
+
+<br><br>
 
 7. Now, you can go ahead and run the updated file again to see what the LLM generates using the added context. Note: This will take several minutes to run.  (If you happen to get an error about not being able to establish a connection, your ollama server may not be running any longer.  If that's the case, you can restart it via the command *"ollama serve &"* and then rerun the python command again.)
 
 ```
 python lab4.py
 ```
+
+<br><br>
 
 8. After the run is complete, you should see additional data from the LLM related to the additional context with an interesting result!
 
@@ -392,6 +408,8 @@ python lab4.py
 
 1. In our last lab, we hardcoded Cypher queries and worked more directly with the Graph database. Let's see how we can simplify this.
 
+<br><br>
+
 2. First, we need a different graph database. Again, we'll use a docker image for this that is already populated with data for us. Change to the neo4j directory and run the script, but note the different parameter ("2" instead of "1"). This will take a few minutes to build and start. Be sure to add the "&" to run this in the background.
 
 (When it is ready, you may see a "*INFO  [neo4j/########] successfully initialized:*" message or one that says "naming to docker.io/library/neo4j:custom".) Just hit *Enter* and you can change back to the *workspaces/rag* subdirectory. 
@@ -402,12 +420,16 @@ cd /workspaces/rag/neo4j
 cd ..
 ``` 
 
+<br><br>
+
 3. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/rag) when you run these commands.**
 
 ```
 npm i -g http-server
 http-server
 ```
+
+<br><br>
 
 3. After a moment, you should see a pop-up dialog that you can click on to open a browser to see some of the nodes in the graph. It will take a minute or two to load and then you can zoom in by using your mouse (roll wheel) to see more details.
 
@@ -416,34 +438,49 @@ http-server
 ![graph nodes](./images/rag26.png?raw=true "graph nodes")
 
 
+<br><br>
+
 4. When done, you can stop the *http-server* process with *Ctrl-C*. Now, let's go back and create a file to use the langchain pieces and the llm to query our graph database. Change back to the *genai* directory and create a new file named lab5.py.
 ```
 cd code
 code lab5.py
 ```
+
+<br><br>
+
 5. First, add the imports from *langchain* that we need. Put the following lines in the file you just created.
 ```
-from langchain.chains import GraphCypherQAChain
-from langchain_community.graphs import Neo4jGraph
-from langchain_community.llms import Ollama
+from langchain_neo4j import Neo4jGraph, GraphCypherQAChain
+from langchain_ollama import OllamaLLM
 ```
+
+<br><br>
+
 6. Now, let's add the connection to the graph database. Add the following to the file.
 ```
 graph = Neo4jGraph(
     url="bolt://localhost:7687",
     username="neo4j",
     password="neo4jtest",
-    enhanced_schema=True,
+    enhanced_schema=False,
 )
 ```
+
+<br><br>
+
+
 7. Next, let's create the chain instance that will allow us to leverage the LLM to help create the Cypher query and help frame the answer so it makes sense. We'll use Ollama and our llama3 model for both the LLM to create the Cypher queries and the LLM to help frame the answers.
 ```
 chain = GraphCypherQAChain.from_llm(
-    cypher_llm=Ollama(model="llama3",temperature=0),
-    qa_llm=Ollama(model="llama3",temperature=0),
-    graph=graph, verbose=True,
+    cypher_llm=OllamaLLM(model="llama3.2:3b", temperature=0),
+    qa_llm=OllamaLLM(model="llama3.2:3b", temperature=0),
+    graph=graph,
+    verbose=True,
+    allow_dangerous_requests=True,
 )
 ```
+
+<br><br>
 
 8. Finally, let's add the code loop to take in a query and invoke the chain. After you've added this code, save the file.
 ```
@@ -457,16 +494,21 @@ while True:
     print(response["result"])
 ```
 
-10. Now, run the code.
+<br><br>
+
+9. Now, run the code.
 ```
 python lab5.py
 ```
-11. You can prompt it with queries related to the info in the graph database, like:
+
+<br><br>
+
+10. You can prompt it with queries related to the info in the graph database, like:
 ```
 Who starred in Star Trek : Generations?
 Which movies are comedies?
 ```
-(Ignore the initial error about "NoneType".)
+
 
 <p align="center">
 **[END OF LAB]**

@@ -346,10 +346,10 @@ docker ps
 ```
 ![container check](./images/ragv2-14.png?raw=true "container check")
 
-3. For the next steps, make sure you're back in the *genai* directory. In here, we have a simple Python program to interact with the graph database and query it. The file name is lab4.py. Open the file either by clicking on [**genai/lab4.py**](./genai/lab4.py) or by entering the *code* command below in the codespace's terminal.
+3. For the next steps, make sure you're back in the *code* directory. In here, we have a simple Python program to interact with the graph database and query it. The file name is lab4.py. Open the file either by clicking on [**code/lab4.py**](./code/lab4.py) or by entering the *code* command below in the codespace's terminal.
 
 ```
-cd ../genai
+cd ../code
 code lab4.py
 ```
 

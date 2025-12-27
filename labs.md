@@ -118,14 +118,14 @@ python lab1.py
 1. For this lab and the following ones, we'll be using files in the *rag* subdirectory. Change to that directory.
 
 ```
-cd rag
+cd data
 ```
 
 <br><br>
 
-2. We have several data files that we'll be using that are for a ficticious company. The files are located in the *rag/knowledge_base_pdfs* directory. [knowledge base pdfs](./rag/knowledge_base_pdfs) You can browse them via the explorer view. Here's a [direct link](./rag/knowledge_base_pdfs/OmniTech_Returns_Policy_2024.pdf) to an example one if you want to open it and take a look at it.
+2. We have several data files that we'll be using that are for a ficticious company. The files are located in the *data/knowledge_base_pdfs* directory. [knowledge base pdfs](./data/knowledge_base_pdfs) You can browse them via the explorer view. Here's a [direct link](./data/knowledge_base_pdfs/OmniTech_Returns_Policy_2024.pdf) to an example one if you want to open it and take a look at it.
 
-![PDF data file](./images/aia-1-41.png?raw=true "PDF data file") 
+![PDF data file](./images/rag2v-15.png?raw=true "PDF data file") 
 
 <br><br>
 

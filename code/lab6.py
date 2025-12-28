@@ -1,299 +1,637 @@
+#!/usr/bin/env python3
+"""
+Hybrid RAG: Combining Semantic Search + Knowledge Graph
+================================================================================
 
-#
 
-import requests
-from typing import List, Dict
-from rank_bm25 import BM25Okapi
+1. SEMANTIC SEARCH (ChromaDB)
+
+2. GRAPH SEARCH (Neo4j)
+
+3. HYBRID (Both Combined)
+
+KEY INSIGHT:
+
+PREREQUISITES:
+   - ChromaDB populated with OmniTech documents (run index_pdfs.py first)
+   - Neo4j running with OmniTech graph (./neo4j-setup.sh 3)
+   - Ollama running with llama3.2:3b model (ollama pull llama3.2:3b)
+
+USAGE:
+   python lab6_hybrid.py
+   Then enter queries to compare all three methods side-by-side.
+"""
+
+# ══════════════════════════════════════════════════════════════════════════════
+# IMPORTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+import requests                 # For making HTTP requests to Ollama LLM API
+from typing import List, Dict   # Type hints for better code readability
+
+# ChromaDB imports for semantic/vector search
+# PersistentClient connects to a disk-based ChromaDB database
 from chromadb import PersistentClient
 from chromadb.config import Settings, DEFAULT_TENANT, DEFAULT_DATABASE
-import re
 
-# ANSI color codes for terminal output highlighting.
-# These are used to color the "Top result" lines when printing demo output.
-ANSI_RED = "\033[91m"
-ANSI_GREEN = "\033[92m"
-ANSI_RESET = "\033[0m"
+# py2neo is a Python library for working with Neo4j graph databases
+# Graph class provides a connection to Neo4j and methods to run Cypher queries
+from py2neo import Graph
 
-# Configuration constants:
-# - CHROMA_PATH: file-system path where ChromaDB persistent data is stored.
-# - COLLECTION_NAME: name of the Chroma collection that holds document chunks + metadata.
-# - OLLAMA_URL / OLLAMA_MODEL: endpoint and model for generation (Ollama local API in this demo).
+# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 
-# TEST_CASES provides sample queries and expected document sources to exercise the
-# retrieval behavior (used by demonstration helpers). This is illustrative and not required
-# by the core logic.
-TEST_CASES = [
-    # SEMANTIC WINS: vocabulary mismatch cases
-    {
-        "question": "How do I send something back?",
-        "expected_source": "OmniTech_Returns_Policy_2024.pdf",
-        "why": "'send back' vs 'return' - semantic understands intent"
-    },
-    {
-        "question": "My thing is broken, help!",
-        "expected_source": "OmniTech_Device_Troubleshooting_Manual.pdf",
-        "why": "'thing broken' vs 'device malfunction' - vague user language"
-    },
-    {
-        "question": "What's the warranty on products?",
-        "expected_source": "OmniTech_Returns_Policy_2024.pdf",
-        "why": "'warranty' concept understood by semantic search"
-    },
-    # KEYWORD HELPS: exact terminology
-    {
-        "question": "What is the Pro-Series equipment return policy?",
-        "expected_source": "OmniTech_Returns_Policy_2024.pdf",
-        "why": "'Pro-Series' is exact terminology - keyword ensures match"
-    },
-]
+# Path to the ChromaDB database directory (created by index_pdfs.py)
+# This contains vector embeddings of all PDF document chunks
+CHROMA_PATH = "./chroma_db"
 
+# Name of the collection within ChromaDB that holds our document embeddings
+# This was set when running index_pdfs.py
+COLLECTION_NAME = "pdf_documents"
+
+# Neo4j connection URI - Bolt protocol on default port 7687
+# Neo4j must be running (./neo4j-setup.sh 3) for graph search to work
+NEO4J_URI = "neo4j://localhost:7687"
+
+# Neo4j authentication credentials
+# These match what's set in neo4j-setup.sh
+NEO4J_AUTH = ("neo4j", "neo4jtest")
+
+# Ollama API endpoint for LLM generation
+# Ollama must be running locally (ollama serve)
+OLLAMA_URL = "http://localhost:11434/api/generate"
+
+# Which Ollama model to use for generating answers
+# llama3.2:3b is a good balance of speed and quality for demos
+OLLAMA_MODEL = "llama3.2:3b"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 
 class HybridRAG:
     """
+    Complete RAG system combining semantic search, knowledge graph, and LLM generation.
+
+    This class provides three retrieval methods:
+    - semantic_search(): Vector similarity search in ChromaDB
+    - graph_search(): Cypher query traversal in Neo4j
+    - hybrid_search(): Combines both methods
+
+    And one generation method:
+    - rag_query(): Full RAG pipeline (retrieve + augment + generate)
     """
 
     def __init__(self):
-        # Instance attributes:
-        # - collection: Chroma collection object used for vector queries
-        # - documents: list of raw text chunks loaded from the collection
-        # - metadatas: parallel list of metadata dicts aligned with `documents`
-        # - bm25: BM25Okapi instance built on tokenized `documents` for keyword search
-        self.collection = None
-        self.documents: List[str] = []
-        self.metadatas: List[Dict] = []
-        self.bm25 = None
-
-        # Connect to Chroma and build the BM25 index right away so the instance is ready.
-        self._connect_db()
-        self._build_bm25()
-
-    def _connect_db(self):
         """
+        Initialize the HybridRAG system by connecting to both databases.
+
+        On initialization, we:
+        1. Connect to ChromaDB and load the document collection
+        2. Connect to Neo4j and verify the graph is accessible
+
+        If Neo4j is unavailable, the system continues with semantic-only search.
+        """
+        # These will hold our database connections
+        self.collection = None  # ChromaDB collection for semantic search
+        self.graph = None       # Neo4j graph connection for graph search
+
+        # Establish connections to both databases
+        self._connect_chromadb()
+        self._connect_neo4j()
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # DATABASE CONNECTION METHODS
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _connect_chromadb(self):
+        """
+        Connect to ChromaDB for semantic (vector) search.
+
+        ChromaDB stores document chunks as vector embeddings. When we search,
+        it finds chunks whose vectors are mathematically similar to the query
+        vector - this is how it understands "meaning" rather than just keywords.
+
+        The database must already exist (created by running index_pdfs.py).
         """
         print("Connecting to ChromaDB...")
-        client = PersistentClient(path=CHROMA_PATH, settings=Settings(),
-                                  tenant=DEFAULT_TENANT, database=DEFAULT_DATABASE)
-        # Request the named collection from the Chroma client.
+
+        # PersistentClient connects to a database stored on disk
+        # This is different from an in-memory client - data persists between runs
+        client = PersistentClient(
+            path=CHROMA_PATH,           # Directory where ChromaDB stores its data
+            settings=Settings(),         # Default settings
+            tenant=DEFAULT_TENANT,       # Multi-tenancy support (using default)
+            database=DEFAULT_DATABASE    # Database name (using default)
+        )
+
+        # Get the collection that contains our PDF document embeddings
+        # This collection was created by index_pdfs.py with the same name
         self.collection = client.get_collection(name=COLLECTION_NAME)
 
-        # Pull the persisted documents and their metadata into memory.
-        data = self.collection.get(include=["documents", "metadatas"])
-        self.documents = data["documents"]
-        self.metadatas = data["metadatas"]
+        # Report how many document chunks are available for search
+        count = self.collection.count()
+        print(f"  Loaded {count} document chunks")
 
-        # Report how many text chunks were loaded (useful for debugging / sanity checks).
-        print(f"Loaded {len(self.documents)} chunks")
+    def _connect_neo4j(self):
+        """
 
-    def _build_bm25(self):
+
+        If Neo4j isn't running, graph search will be disabled but the system
+        continues to work with semantic search only.
         """
-        """
-        print("Building BM25 index...")
-        tokenized = [re.findall(r'\b\w+\b', doc.lower()) for doc in self.documents]
-        self.bm25 = BM25Okapi(tokenized)
+        print("Connecting to Neo4j...")
+        try:
+            # Create a connection to the Neo4j database
+            # py2neo's Graph class handles the Bolt protocol connection
+            self.graph = Graph(NEO4J_URI, auth=NEO4J_AUTH)
+
+            # Verify the connection works by running a simple Cypher query
+            # This also tells us how many nodes are in the graph
+            result = self.graph.run("MATCH (n) RETURN count(n) as count").data()
+            count = result[0]['count'] if result else 0
+            print(f"  Loaded {count} graph nodes")
+
+        except Exception as e:
+            # If Neo4j isn't available, we degrade gracefully
+            # The system will still work, just without graph search capabilities
+            print(f"  Warning: Neo4j connection failed: {e}")
+            print("  Graph search will be disabled. Run: cd neo4j && ./neo4j-setup.sh 3")
+            self.graph = None
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SEMANTIC SEARCH (ChromaDB)
+    # Uses vector embeddings to find documents with similar MEANING
+    # ══════════════════════════════════════════════════════════════════════════
 
     def semantic_search(self, query: str, k: int = 3) -> List[Dict]:
         """
-        Mechanics:
-          - Call `self.collection.query` with query_texts list and ask for distances.
-          - Chroma returns distances (lower means more similar); convert to a similarity-like score:
-              score = 1 / (1 + distance)  — simple monotonic transform so higher is better.
-          - Build a list of results preserving content + metadata + score for downstream use.
+        LIMITATIONS:
+        - May return related but not directly relevant content
+        - Precise facts may be buried in returned text
+        - Quality depends on how well documents were chunked
+
+        Args:
+            query: The user's question or search text
+            k: Number of results to return (default 3)
+
+        Returns:
+            List of dictionaries containing:
+            - content: The actual text of the document chunk
+            - metadata: Source file, page number, etc.
+            - score: Relevance score (0-1, higher is better)
+            - source: "semantic" to identify the retrieval method
         """
-        results = self.collection.query(query_texts=[query], n_results=k,
-                                        include=["documents", "metadatas", "distances"])
-        # results is organized as nested lists: results["documents"][0][i] etc.
+        # Query ChromaDB for similar document chunks
+        # query_texts: The text to search for (converted to vector internally)
+        # n_results: How many chunks to return
+        # include: What data to return for each result
+        results = self.collection.query(
+            query_texts=[query],                              # Search query
+            n_results=k,                                      # Number of results
+            include=["documents", "metadatas", "distances"]   # What to return
+        )
+
+        # Transform ChromaDB's response format into our standard format
+        # ChromaDB returns nested lists because it supports batch queries
+        # We only have one query, so we access index [0] for everything
         return [
             {
-                "content": results["documents"][0][i],
-                "metadata": results["metadatas"][0][i],
-                # transform distance to a bounded similarity-like score
-                "score": 1.0 / (1.0 + results["distances"][0][i])
+                "content": results["documents"][0][i],      # The actual text
+                "metadata": results["metadatas"][0][i],     # Source info
+                "score": 1.0 / (1.0 + results["distances"][0][i]),  # Convert distance to score
+                "source": "semantic"                        # Tag as semantic result
             }
             for i in range(len(results["documents"][0]))
         ]
 
-    def keyword_search(self, query: str, k: int = 3) -> List[Dict]:
+    # ══════════════════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def graph_search(self, query: str, k: int = 5) -> List[Dict]:
         """
+
+        THE POWER OF GRAPH TRAVERSAL:
+        Instead of searching text, we traverse explicit relationships:
+
+            "What's the return window for Pro-Series?"
+
+            Cypher traverses:
+            Product(Pro_Series) <-[APPLIES_TO]- Policy(Pro_Series_Return)
+                                -[HAS_TIMEFRAME]-> TimeFrame(14_Days)
+
+            Direct answer: 14 days (no text parsing needed!)
+
+        WHY IT'S USEFUL:
+        - Precise, structured answers
+        - Relationship queries ("who handles X?")
+        - Consistent results for modeled entities
+
+        LIMITATIONS:
+        - Only knows explicitly modeled relationships
+        - Requires upfront knowledge graph construction
+        - Can't handle queries outside the graph schema
+
+        Args:
+            query: The user's question
+            k: Maximum number of results to return
+
+        Returns:
+            List of dictionaries with content, metadata, score, source
         """
-        tokens = re.findall(r'\b\w+\b', query.lower())
-        scores = self.bm25.get_scores(tokens)  # array of float scores aligned with self.documents
-        top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
-        # Construct results, filtering out zero-scored entries (no keyword match).
-        return [
-            {"content": self.documents[i], "metadata": self.metadatas[i], "score": scores[i]}
-            for i in top_idx if scores[i] > 0
-        ]
+        # If Neo4j isn't connected, return empty results
+        # The system will fall back to semantic search only
+        if not self.graph:
+            return []
+
+        # Convert query to lowercase for keyword matching
+        query_lower = query.lower()
+        results = []
+
+        # ──────────────────────────────────────────────────────────────────
+        # ──────────────────────────────────────────────────────────────────
+
+        if "pro-series" in query_lower or "pro series" in query_lower or "enterprise" in query_lower:
+            # ══════════════════════════════════════════════════════════════
+            # ══════════════════════════════════════════════════════════════
+
+            # If the query mentions "return", filter to only Return-type policies
+            # Otherwise get all policies (Return, Warranty, etc.)
+            policy_filter = "pol.type = 'Return'" if "return" in query_lower else "TRUE"
+
+            # Cypher query explanation:
+            # MATCH: Find Pro_Series product and policies that APPLY_TO it
+            # WHERE: Filter to Return policies if query mentions returns
+            # OPTIONAL MATCH: Also get related timeframes, conditions, fees, contacts
+            # WHERE tf.description: Only get "return window" timeframe, not "refund processing"
+            # RETURN DISTINCT: Avoid duplicate rows
+            cypher = f"""
+            MATCH (prod:Product {{name: 'Pro_Series'}})<-[:APPLIES_TO]-(pol:Policy)
+            WHERE {policy_filter}
+            OPTIONAL MATCH (pol)-[:HAS_TIMEFRAME]->(tf:TimeFrame)
+            WHERE tf.description CONTAINS 'return' OR tf.description IS NULL
+            OPTIONAL MATCH (pol)-[:REQUIRES_CONDITION]->(cond:Condition)
+            OPTIONAL MATCH (pol)-[:HAS_FEE]->(fee:Fee)
+            OPTIONAL MATCH (contact:Contact)-[:HANDLES]->(pol)
+            RETURN DISTINCT prod, pol, tf, cond, fee, contact
+            """
+
+            # Execute the Cypher query
+            data = self.graph.run(cypher).data()
+
+            # Deduplicate results by policy name
+            # (Multiple rows might exist for the same policy with different contacts)
+            seen_policies = set()
+            for row in data:
+                if row.get('pol') and row['pol']['name'] not in seen_policies:
+                    seen_policies.add(row['pol']['name'])
+                    results.append(self._format_policy_result(row))
+
+        elif "defective" in query_lower or "broken" in query_lower or "doa" in query_lower:
+            # ══════════════════════════════════════════════════════════════
+            # ══════════════════════════════════════════════════════════════
+
+            # This is a RELATIONSHIP query - we traverse:
+            # DOA_Policy -[HAS_TIMEFRAME]-> TimeFrame (reporting window)
+            # DOA_Policy -[APPLIES_TO]-> Products (what it covers)
+            # Contact -[HANDLES]-> DOA_Policy (who to contact)
+            cypher = """
+            MATCH (pol:Policy {name: 'DOA_Policy'})
+            OPTIONAL MATCH (pol)-[:HAS_TIMEFRAME]->(tf:TimeFrame)
+            OPTIONAL MATCH (pol)-[:APPLIES_TO]->(prod:Product)
+            OPTIONAL MATCH (contact:Contact)-[:HANDLES]->(pol)
+            RETURN pol, tf, prod, contact
+            """
+            data = self.graph.run(cypher).data()
+            for row in data:
+                results.append(self._format_doa_result(row))
+
+        elif "contact" in query_lower or "email" in query_lower or "phone" in query_lower or "who" in query_lower:
+            # ══════════════════════════════════════════════════════════════
+            # ══════════════════════════════════════════════════════════════
+
+            # This query finds all Contact nodes and collects what they handle
+            # collect() aggregates multiple matches into a list
+            cypher = """
+            MATCH (c:Contact)
+            OPTIONAL MATCH (c)-[:HANDLES]->(target)
+            RETURN c, collect(target) as handles
+            """
+            data = self.graph.run(cypher).data()
+            for row in data:
+                results.append(self._format_contact_result(row))
+
+        elif "return" in query_lower or "refund" in query_lower:
+            # ══════════════════════════════════════════════════════════════
+            # ══════════════════════════════════════════════════════════════
+            cypher = """
+            MATCH (pol:Policy)
+            WHERE pol.type = 'Return'
+            OPTIONAL MATCH (pol)-[:HAS_TIMEFRAME]->(tf:TimeFrame)
+            OPTIONAL MATCH (pol)-[:APPLIES_TO]->(prod:Product)
+            RETURN pol, tf, collect(DISTINCT prod) as products
+            """
+            data = self.graph.run(cypher).data()
+            for row in data:
+                results.append(self._format_return_result(row))
+
+        else:
+            # ══════════════════════════════════════════════════════════════
+            # ══════════════════════════════════════════════════════════════
+            cypher = """
+            MATCH (pol:Policy)-[:HAS_TIMEFRAME]->(tf:TimeFrame)
+            RETURN pol, tf
+            LIMIT 5
+            """
+            data = self.graph.run(cypher).data()
+            for row in data:
+                pol = row['pol']
+                tf = row['tf']
+                results.append({
+                    "content": f"Policy: {pol['name']}\nDescription: {pol['description']}\nTimeframe: {tf['value']}",
+                    "metadata": {"node": pol['name'], "type": "Policy"},
+                    "score": 0.5,
+                    "source": "graph"
+                })
+
+        # Return at most k results
+        return results[:k]
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _format_policy_result(self, row) -> Dict:
+        """
+        Format a policy query result into readable content.
+
+        Takes a row from a Cypher query that includes policy, timeframe,
+        fee, condition, and contact information, and formats it as
+        human-readable text for the LLM context.
+        """
+        pol = row['pol']
+        content = f"Policy: {pol['name']}\n"
+        content += f"Description: {pol['description']}\n"
+
+        # Add optional fields if they exist in the query result
+        if row.get('tf'):
+            content += f"Return Window: {row['tf']['value']}\n"
+        if row.get('fee'):
+            content += f"Restocking Fee: {row['fee']['value']} - {row['fee']['description']}\n"
+        if row.get('cond'):
+            content += f"Required Condition: {row['cond']['name']} - {row['cond']['description']}\n"
+        if row.get('contact'):
+            c = row['contact']
+            content += f"Contact: {c['value']}"
+            if c.get('hours'):
+                content += f" ({c['hours']})"
+            content += "\n"
+
+        return {
+            "content": content.strip(),
+            "metadata": {"node": pol['name'], "type": "Policy"},
+            "score": 1.0,       # Graph results get high confidence score
+            "source": "graph"   # Tag as graph result
+        }
+
+    def _format_doa_result(self, row) -> Dict:
+        """Format a DOA (Defective on Arrival) policy result."""
+        pol = row['pol']
+        content = f"Policy: {pol['name']}\n"
+        content += f"Description: {pol['description']}\n"
+        if row.get('tf'):
+            content += f"Report Within: {row['tf']['value']}\n"
+        if row.get('contact'):
+            c = row['contact']
+            content += f"Contact: {c['value']} ({c['department']})"
+        return {
+            "content": content,
+            "metadata": {"node": pol['name'], "type": "Policy"},
+            "score": 1.0,
+            "source": "graph"
+        }
+
+    def _format_contact_result(self, row) -> Dict:
+        """Format a contact query result with what they handle."""
+        c = row['c']
+        content = f"Contact: {c['name']}\n"
+        content += f"Value: {c['value']}\n"
+        content += f"Type: {c['type']}\n"
+        content += f"Department: {c['department']}\n"
+        if c.get('hours'):
+            content += f"Hours: {c['hours']}\n"
+        if row.get('handles'):
+            # List all policies/entities this contact handles
+            handles = [h['name'] for h in row['handles'] if h]
+            if handles:
+                content += f"Handles: {', '.join(handles)}"
+        return {
+            "content": content,
+            "metadata": {"node": c['name'], "type": "Contact"},
+            "score": 1.0,
+            "source": "graph"
+        }
+
+    def _format_return_result(self, row) -> Dict:
+        """Format a return policy result with applicable products."""
+        pol = row['pol']
+        content = f"Policy: {pol['name']}\n"
+        content += f"Description: {pol['description']}\n"
+        if row.get('tf'):
+            content += f"Window: {row['tf']['value']}\n"
+        if row.get('products'):
+            prods = [p['name'] for p in row['products'] if p]
+            if prods:
+                content += f"Applies To: {', '.join(prods)}"
+        return {
+            "content": content,
+            "metadata": {"node": pol['name'], "type": "Policy"},
+            "score": 1.0,
+            "source": "graph"
+        }
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════════════
 
     def hybrid_search(self, query: str, k: int = 3) -> List[Dict]:
         """
+
+        Args:
+            query: The user's question
+            k: Number of results from each method
+
+        Returns:
+            Combined list with graph results first, then semantic results
         """
-        # Get a larger set of candidates from each method to give RRF more choices.
-        semantic = self.semantic_search(query, k=k*2)
-        keyword = self.keyword_search(query, k=k*2)
+        # Get precise facts from the knowledge graph
+        graph_results = self.graph_search(query, k=k)
 
-        # rrf maps a unique key -> {"score": combined_score, "result": result_dict}
-        rrf = {}
+        # Get contextual information from document embeddings
+        semantic_results = self.semantic_search(query, k=k)
 
-        # Add semantic candidates with weights derived from their rank position.
-        for rank, r in enumerate(semantic, 1):
-            # Use id(content) as a cheap unique key for content identity.
-            key = id(r["content"])
-            # Initialize combined score entry for this chunk.
-            rrf[key] = {"score": 1 / (60 + rank), "result": r}
+        # Combine results: graph first for precision, then semantic for context
+        # This ordering helps the LLM prioritize structured facts
+        combined = graph_results + semantic_results
 
-        # Add keyword candidates, incrementing score if the chunk already exists.
-        for rank, r in enumerate(keyword, 1):
-            key = id(r["content"])
-            if key in rrf:
-                rrf[key]["score"] += 1 / (60 + rank)
-            else:
-                rrf[key] = {"score": 1 / (60 + rank), "result": r}
+        # Return up to 2*k results (k from each method)
+        return combined[:k*2]
 
-        # Sort combined results by the aggregated RRF score (descending) and return top-k result dicts.
-        sorted_results = sorted(rrf.values(), key=lambda x: x["score"], reverse=True)
-        return [item["result"] for item in sorted_results[:k]]
+    # ══════════════════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════════════
 
     def generate_answer(self, question: str, context_chunks: List[Dict]) -> str:
         """
-        LLM call:
-
-        Note:
-          - This function assumes the Ollama endpoint returns JSON with a "response" field.
         """
-        # Build a readable context block with sources to make provenance explicit.
-        context = "\n\n".join([
-            f"[Source: {c['metadata'].get('source', '').split('/')[-1]}]\n{c['content']}"
-            for c in context_chunks
-        ])
+        # Separate graph and semantic results for different formatting
+        graph_context = [c for c in context_chunks if c.get("source") == "graph"]
+        semantic_context = [c for c in context_chunks if c.get("source") == "semantic"]
 
-        # Call the Ollama generation API.
+        # Build the context section of the prompt
+        context_parts = []
 
-        # If the request was successful, extract and return the textual response; otherwise surface an error.
-        return response.json().get("response", "").strip() if response.ok else "Error"
+        # Add graph results as "STRUCTURED DATA" - these are precise facts
+        if graph_context:
+            context_parts.append(
+                "STRUCTURED DATA (from knowledge graph):\n" +
+                "\n---\n".join([c["content"] for c in graph_context])
+            )
+
+        # Add semantic results as "DOCUMENT CONTEXT" - these provide explanations
+        if semantic_context:
+            context_parts.append(
+                "DOCUMENT CONTEXT:\n" +
+                "\n---\n".join([
+                    f"[{c['metadata'].get('source', 'doc').split('/')[-1]}]\n{c['content'][:500]}"
+                    for c in semantic_context
+                ])
+            )
+
+        context = "\n\n".join(context_parts)
+
+        # Construct the full prompt for the LLM
+        # This prompt template instructs the LLM how to use the context
+
+
+        # Send request to Ollama API
+        try:
+
+            if response.status_code == 200:
+                return response.json().get("response", "").strip()
+            return f"Error: {response.status_code}"
+
+        except Exception as e:
+            return f"LLM Error: {e}"
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # COMPLETE RAG PIPELINE
+    # Retrieve → Augment → Generate
+    # ══════════════════════════════════════════════════════════════════════════
 
     def rag_query(self, question: str, method: str = "hybrid") -> Dict:
         """
-        Convenience wrapper implementing the full RAG pipeline for a single query:
-
-        Output: {"answer": <str>, "sources": [<source-file>, ...]}
         """
+        # RETRIEVE: Get relevant context using the specified method
+        if method == "semantic":
+            chunks = self.semantic_search(question)
+        elif method == "graph":
+            chunks = self.graph_search(question)
+        else:
+            chunks = self.hybrid_search(question)
 
+        # AUGMENT + GENERATE: Build prompt with context and call LLM
         answer = self.generate_answer(question, chunks)
+
         return {
             "answer": answer,
-            # Normalize metadata source values to filenames for display
-            "sources": [c["metadata"].get("source", "").split("/")[-1] for c in chunks]
+            "chunks": chunks,
+            "method": method
         }
 
 
-def check_retrieval(rag, question, expected):
-    """
-    Testing helper that runs each retrieval method and checks whether the expected document
-    appears as the top result.
+# ══════════════════════════════════════════════════════════════════════════════
+# TERMINAL COLOR CODES
+# ANSI escape codes for colored terminal output
+# ══════════════════════════════════════════════════════════════════════════════
 
-    Returns a dict mapping method -> {"top_correct": bool, "top_source": str}
-    This function demonstrates how to programmatically evaluate retrieval accuracy.
-    """
-    results = {}
-    for method in ["semantic", "keyword", "hybrid"]:
-        if method == "semantic":
-            chunks = rag.semantic_search(question, k=3)
-        elif method == "keyword":
-            chunks = rag.keyword_search(question, k=3)
-        else:
-            chunks = rag.hybrid_search(question, k=3)
-
-        # Extract just the source filename from metadata for easier comparisons.
-        sources = [c["metadata"].get("source", "").split("/")[-1] for c in chunks]
-        top_source = sources[0] if sources else "NONE"
-        results[method] = {"top_correct": expected in top_source, "top_source": top_source}
-    return results
+RED = "\033[91m"     # Semantic results displayed in red
+BLUE = "\033[94m"    # Graph results displayed in blue
+GREEN = "\033[92m"   # Hybrid results displayed in green
+RESET = "\033[0m"    # Reset to default terminal color
+BOLD = "\033[1m"     # Bold text
 
 
-def show_chunks(chunks, method, max_chars=200):
-    """
-    Pretty-print the top retrieved chunks for a method.
-
-    Prints:
-      - Method header
-      - Top N chunk previews (default 2): source filename, score, and a short preview
-    The preview is truncated to max_chars and newlines replaced with spaces for readability.
-    """
-    print(f"\n  {method.upper()} results:")
-    for i, chunk in enumerate(chunks[:2], 1):  # show only top 2 for compactness
-        source = chunk["metadata"].get("source", "unknown").split("/")[-1]
-        score = chunk.get("score", 0)
-        preview = chunk["content"][:max_chars].replace("\n", " ")
-        if len(chunk["content"]) > max_chars:
-            preview += "..."
-        print(f"    {i}. [{source}] (score: {score:.3f})")
-        print(f"       \"{preview}\"")
-
+# ══════════════════════════════════════════════════════════════════════════════
+# INTERACTIVE DEMO
+# Allows users to enter queries and compare all three methods side-by-side
+# ══════════════════════════════════════════════════════════════════════════════
 
 def run_demo():
     """
-    Main demo driver that:
-      - Instantiates HybridRAG (connect + build index).
-      - Runs a sample query across semantic, keyword, and hybrid methods.
-      - Prints retrieved chunks and a colored "Top result" correctness line; green for correct, red for wrong.
-      - Finally runs the full RAG pipeline and prints the generated answer and sources.
     """
-    print("=" * 70)
-    print("HYBRID RAG DEMONSTRATION")
-    print("=" * 70)
+    # Display header
+    print(f"{BOLD}Hybrid RAG: Semantic + Graph + Hybrid{RESET}")
+    print("=" * 50)
 
-    # Create the RAG system; this triggers DB connection and BM25 construction.
+    # Initialize the RAG system (connects to both databases)
     rag = HybridRAG()
 
-    # PART 1: Demonstrate the behavior of different retrieval methods on the same query.
-    print("\n" + "=" * 70)
-    print("PART 1: Query with different search types")
-    print("=" * 70)
-    print("\nUser query: \"How do I get my money back for a purchase?\"")
+    # Warn if Neo4j isn't available
+    if not rag.graph:
+        print(f"\n{RED}Neo4j not connected. Graph search disabled.{RESET}")
+        print("Run: cd /workspaces/rag/neo4j && ./neo4j-setup.sh 3\n")
 
-    expected = "OmniTech_Returns_Policy_2024.pdf"
+    # Display instructions
+    print(f"\nEnter queries to compare all 3 methods. Type 'exit' to quit.\n")
+    print(f"  {RED}RED{RESET} = Semantic (ChromaDB)")
+    print(f"  {BLUE}BLUE{RESET} = Graph (Neo4j)")
+    print(f"  {GREEN}GREEN{RESET} = Hybrid (Both)\n")
 
-    # Iterate through methods and print results with colored top-result correctness.
-    for method in ["semantic", "keyword", "hybrid"]:
-        # Select the retrieval function and ask for top-2 chunks.
-        if method == "semantic":
-            chunks = rag.semantic_search(question, k=2)
-        elif method == "keyword":
-            chunks = rag.keyword_search(question, k=2)
-        else:
-            chunks = rag.hybrid_search(question, k=2)
+    # Main interaction loop
+    while True:
+        # Get query from user
+        query = input(f"{BOLD}Query:{RESET} ").strip()
 
-        # Extract the top source filename (or "NONE" if no results).
-        top_source = chunks[0]["metadata"].get("source", "").split("/")[-1] if chunks else "NONE"
-        correct = expected in top_source
-        symbol = "✓ CORRECT" if correct else "✗ WRONG"
+        # Exit condition
+        if query.lower() == "exit":
+            print("Goodbye!")
+            break
 
-        # Color the "Top result" line green when correct, red when wrong using ANSI codes.
-        if correct:
-            result_text = f"{ANSI_GREEN}→ Top result: {symbol}{ANSI_RESET}"
-        else:
-            result_text = f"{ANSI_RED}→ Top result: {symbol}{ANSI_RESET}"
+        # Skip empty queries
+        if not query:
+            continue
 
-        # Show top chunk previews and then print the colored correctness line.
-        show_chunks(chunks, method)
-        print(f"    {result_text}")
+        print()
+
+        # ──────────────────────────────────────────────────────────────────
+        # Run query through all three methods and display results
+        # ──────────────────────────────────────────────────────────────────
+
+        # SEMANTIC: Vector similarity search in ChromaDB
+        print(f"{RED}{BOLD}SEMANTIC:{RESET}")
+        sem_result = rag.rag_query(query, method="semantic")
+        print(f"{RED}{sem_result['answer']}{RESET}")
+        print()
+
+        # GRAPH: Cypher query traversal in Neo4j
+        print(f"{BLUE}{BOLD}GRAPH:{RESET}")
+        graph_result = rag.rag_query(query, method="graph")
+        print(f"{BLUE}{graph_result['answer']}{RESET}")
+        print()
+
+        # HYBRID: Both methods combined
+        print(f"{GREEN}{BOLD}HYBRID:{RESET}")
+        hybrid_result = rag.rag_query(query, method="hybrid")
+        print(f"{GREEN}{hybrid_result['answer']}{RESET}")
+        print()
+
+        # Separator between queries
+        print("-" * 50)
+        print()
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN ENTRY POINT
+# ══════════════════════════════════════════════════════════════════════════════
 
-    # PART 2: Demonstrate the full RAG pipeline — retrieve context and use LLM to answer.
-    print("\n" + "=" * 70)
-    print("PART 2: Complete RAG Pipeline (Retrieve → Augment → Generate)")
-    print("=" * 70)
-
-    # Print the generated answer and the list of provenance sources used.
-    print("─" * 70)
-    print("GENERATED ANSWER:")
-    print("─" * 70)
-    print(result["answer"])
-    print("─" * 70)
-    print(f"Sources used: {result['sources']}")
-
-
-# Standard Python idiom to run demo when script executed directly.
 if __name__ == "__main__":
+    # Run the interactive demo when script is executed directly
     run_demo()

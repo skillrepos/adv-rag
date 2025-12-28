@@ -631,36 +631,7 @@ Notice the `HybridRAG` class connects to both databases:
 
 <br><br>
 
-7. Look at the `graph_search` method (around line 87). This is where Cypher queries traverse relationships:
-
-```python
-# When query mentions "pro-series" and "return"
-cypher = """
-MATCH (prod:Product {name: 'Pro_Series'})<-[:APPLIES_TO]-(pol:Policy)
-WHERE pol.type = 'Return'
-OPTIONAL MATCH (pol)-[:HAS_TIMEFRAME]->(tf:TimeFrame)
-OPTIONAL MATCH (contact:Contact)-[:HANDLES]->(pol)
-RETURN prod, pol, tf, contact
-"""
-```
-
-The graph traverses: `Product ← APPLIES_TO ← Policy → HAS_TIMEFRAME → TimeFrame`
-
-<br><br>
-
-8. The `hybrid_search` method (around line 250) combines both:
-
-```python
-def hybrid_search(self, query: str, k: int = 3) -> List[Dict]:
-    graph_results = self.graph_search(query, k=k)
-    semantic_results = self.semantic_search(query, k=k)
-    # Graph first (precision), then semantic (context)
-    return graph_results + semantic_results
-```
-
-<br><br>
-
-9. Discussion Points:
+10. Discussion Points:
 - **Semantic search** (ChromaDB) understands MEANING - handles "money back" → "refund"
 - **Graph search** (Neo4j) understands STRUCTURE - traverses entity relationships
 - **Cypher queries** navigate: `Product → Policy → TimeFrame → Contact`
@@ -669,14 +640,20 @@ def hybrid_search(self, query: str, k: int = 3) -> List[Dict]:
 
 <br><br>
 
-10. You can also visualize the knowledge graph. Start a local web server:
+11. [OPTIONAL] You can also visualize the knowledge graph. Start a local web server:
 
 ```
 cd /workspaces/rag/neo4j/data3/public
 npx http-server
 ```
 
-Click the pop-up to open the browser and see the graph visualization with D3.js.
+Click the pop-up to open the browser and see the graph visualization. You can move around using the mouse and also zoom in and out. 
+
+**NOTE**: If you can't open the page, you may need to go back to the codespace, go to the *PORTS* tab (next to *TERMINAL*), right-click, and set the *Visibility* field to *Public*. See screenshot below.
+
+![make port public](./images/ragv2-26.png?raw=true "make port public")
+
+After that, refresh the page and try again. You may still have to click through another page to allow access.
 
 <br><br>
 
@@ -701,3 +678,4 @@ Click the pop-up to open the browser and see the graph visualization with D3.js.
 <p align="center">
 <b>(c) 2026 Tech Skills Transformations and Brent C. Laster. All rights reserved.</b>
 </p>
+

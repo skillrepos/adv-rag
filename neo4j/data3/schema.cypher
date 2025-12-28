@@ -1,4 +1,4 @@
-LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/omnitech_policies.csv' AS row
+LOAD CSV WITH HEADERS FROM 'file:///omnitech_policies.csv' AS row
 
 FOREACH (_ in CASE WHEN row.policy_name IS NOT NULL AND row.policy_name <> '' THEN [1] ELSE [] END |
     MERGE (pol:Policy {name: row.policy_name})
@@ -72,3 +72,4 @@ FOREACH (_ in CASE WHEN row.shipping_name IS NOT NULL AND row.shipping_name <> '
 FOREACH (_ in CASE WHEN row.document_name IS NOT NULL AND row.document_name <> '' THEN [1] ELSE [] END |
     MERGE (doc:Document {name: row.document_name})
     MERGE (doc)-[:CONTAINS]->(pol))
+

@@ -35,7 +35,7 @@ The codespace is ready to use when you see a prompt like the one shown below in 
 
 **4. Open up the *labs.md* file so you can follow along with the labs.**
 You can either open it in a separate browser instance or open it in the codespace. If you open it in the codespace, make sure to *Open Preview* so you can see it in Markdown form as intended.
-![Opening labs](./images/rag03.png?raw=true "Opening labs")
+![Opening labs](./images/ragv2-27.png?raw=true "Opening labs")
 
 **Now, you are ready for the labs!**
 

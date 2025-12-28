@@ -9,6 +9,7 @@ set -e
 
 OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 MODEL="llama3"
+MODEL_3B="llama3.2:3b"  # Used by lab6_hybrid.py
 MAX_WAIT_SERVER=60
 MAX_WAIT_PULL=300
 
@@ -74,9 +75,21 @@ else
     echo "  -> Model ${MODEL} is already available"
 fi
 
+# Step 3b: Pull the 3b model if not present (for lab6_hybrid.py)
+echo ""
+echo "[3b/6] Checking ${MODEL_3B} model (for Lab 6)..."
+if ! curl -s "${OLLAMA_HOST}/api/tags" 2>/dev/null | grep -q "llama3.2:3b"; then
+    echo "  -> Model not found, pulling ${MODEL_3B}..."
+    echo "  -> This may take several minutes on first run..."
+    ollama pull ${MODEL_3B}
+    echo "  -> Model pulled successfully"
+else
+    echo "  -> Model ${MODEL_3B} is already available"
+fi
+
 # Step 4: Warm up the model by sending a simple request
 echo ""
-echo "[4/5] Warming up ${MODEL} model (loading into memory)..."
+echo "[4/6] Warming up ${MODEL} model (loading into memory)..."
 echo "  -> Sending warmup request..."
 
 WARMUP_START=$(date +%s)
@@ -100,9 +113,35 @@ else
     echo "  -> Response: $RESPONSE"
 fi
 
+# Step 4b: Warm up the 3b model (for lab6_hybrid.py)
+echo ""
+echo "[4b/6] Warming up ${MODEL_3B} model (for Lab 6)..."
+echo "  -> Sending warmup request..."
+
+WARMUP_3B_START=$(date +%s)
+RESPONSE_3B=$(curl -s -X POST "${OLLAMA_HOST}/api/generate" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "model": "'"${MODEL_3B}"'",
+        "prompt": "Reply with only the word: ready",
+        "stream": false,
+        "options": {
+            "num_predict": 10
+        }
+    }')
+WARMUP_3B_END=$(date +%s)
+WARMUP_3B_TIME=$((WARMUP_3B_END - WARMUP_3B_START))
+
+if echo "$RESPONSE_3B" | grep -q '"response"'; then
+    echo "  -> Model loaded and responding (warmup took ${WARMUP_3B_TIME}s)"
+else
+    echo "  -> WARNING: Warmup request may have failed"
+    echo "  -> Response: $RESPONSE_3B"
+fi
+
 # Step 5: Verify everything is working
 echo ""
-echo "[5/5] Verifying setup..."
+echo "[5/6] Verifying setup..."
 
 # Quick verification request
 VERIFY_START=$(date +%s)
@@ -131,12 +170,16 @@ echo "=== Warmup Complete ==="
 echo ""
 echo "Ollama is ready with the following configuration:"
 echo "  - Server: ${OLLAMA_HOST}"
-echo "  - Model: ${MODEL}"
-echo "  - Initial warmup time: ${WARMUP_TIME}s"
+echo "  - Model: ${MODEL} (Labs 1-5)"
+echo "  - Model: ${MODEL_3B} (Lab 6 Hybrid RAG)"
+echo "  - ${MODEL} warmup time: ${WARMUP_TIME}s"
+echo "  - ${MODEL_3B} warmup time: ${WARMUP_3B_TIME}s"
 echo "  - Subsequent response time: ${VERIFY_TIME}s"
 echo ""
 echo "You can now run the labs with faster startup and response times!"
 echo ""
-echo "Quick test command:"
+echo "Quick test commands:"
 echo "  curl -s ${OLLAMA_HOST}/api/generate -d '{\"model\":\"${MODEL}\",\"prompt\":\"Hi\",\"stream\":false}'"
+echo "  curl -s ${OLLAMA_HOST}/api/generate -d '{\"model\":\"${MODEL_3B}\",\"prompt\":\"Hi\",\"stream\":false}'"
 echo ""
+

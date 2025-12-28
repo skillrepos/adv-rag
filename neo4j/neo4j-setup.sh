@@ -83,7 +83,7 @@ COUNT=$(docker exec neo4j cypher-shell -u neo4j -p neo4jtest "MATCH (n) RETURN c
 # If no nodes loaded, try manual load
 if [ -z "$COUNT" ] || [ "$COUNT" = "0" ]; then
     echo "APOC auto-init didn't load schema. Loading manually..."
-    docker exec neo4j cypher-shell -u neo4j -p neo4jtest -f /var/lib/neo4j/db_init/schema.cypher 2>/dev/null
+    docker exec neo4j cypher-shell -u neo4j -p neo4jtest -f /var/lib/neo4j/db_init/schema.cypher
     sleep 2
     COUNT=$(docker exec neo4j cypher-shell -u neo4j -p neo4jtest "MATCH (n) RETURN count(n) as c" 2>/dev/null | grep -E "^[0-9]+$" | head -1)
 fi
@@ -115,5 +115,3 @@ echo ""
 echo "To view logs:  docker logs neo4j"
 echo "To stop:       docker stop neo4j"
 echo "=========================================="
-
-

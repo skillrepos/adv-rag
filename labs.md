@@ -575,9 +575,15 @@ python lab6.py
 
 <br><br>
 
-6. Watch the output - the demo asks the same question using three different methods:
+6. Let's try a basic query for the return policy. Type in the query below and hit *Enter/Return*.
 
-**Query:** "What is the return window for Pro-Series equipment and who do I contact?"
+```
+What is the return window for Pro-Series equipment and who do I contact?
+```
+
+![running query](./images/ragv2-22.png?raw=true "running query")
+
+7. Watch the output - the demo asks the same question using three different methods:
 
 You'll see:
 - **METHOD 1: SEMANTIC** - Finds document chunks with similar meaning
@@ -590,22 +596,35 @@ Each method shows:
 
 <br><br>
 
-5. Compare the results:
+You can compare the results:
 
 | Method | What it found | Strength |
 |--------|---------------|----------|
 | SEMANTIC | Document chunks mentioning Pro-Series | Good context, handles vocabulary mismatch |
 | GRAPH | Pro_Series → Pro_Series_Return → 14_Days | Precise facts via Cypher traversal |
-| HYBRID | Graph facts + Document context | Best of both worlds |
+| HYBRID | Graph facts + Document context | Combines both worlds |
+
+![multiple answers](./images/ragv2-21.png?raw=true "multiple answers")
 
 <br><br>
 
-6. Let's examine the key code. Open the file:
-
+8. Let's try another query that may benefit more from having the graph db involved. Enter the one below.
+   
 ```
-code lab6_hybrid.py
+Who handles defective items?
 ```
 
+![2nd query](./images/ragv2-24.png?raw=true "2nd query")
+
+<br><br>
+
+
+9. Notice again the variations in the responses. Typically, because of the direct mapping, the *HYBRID* and *GRAPH* responses will have the best information.
+
+![2nd query](./images/ragv2-23.png?raw=true "2nd query")
+
+<br><br>
+    
 Notice the `HybridRAG` class connects to both databases:
 - **ChromaDB** for semantic search (lines 46-53)
 - **Neo4j** for graph search (lines 55-67)

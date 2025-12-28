@@ -11,24 +11,20 @@ if [ -z "$DATASET" ]; then
     exit 1
 fi
 
-# Check if the container exists
-if docker ps -a | grep -q "$CONTAINER_NAME"; then
-    echo "Stopping and removing existing container: $CONTAINER_NAME"
-    docker stop "$CONTAINER_NAME" 2>/dev/null
-    docker rm "$CONTAINER_NAME" 2>/dev/null
-fi
+# Force remove existing container (if any)
+echo "Cleaning up existing container..."
+docker stop "$CONTAINER_NAME" 2>/dev/null
+docker rm -f "$CONTAINER_NAME" 2>/dev/null
 
-# Check if the image exists
-if docker images | grep -q "$IMAGE_NAME"; then
-    echo "Removing existing image: $IMAGE_NAME"
-    docker rmi "$IMAGE_NAME" 2>/dev/null
-fi
+# Force remove existing image (if any)
+echo "Cleaning up existing image..."
+docker rmi -f "$IMAGE_NAME" 2>/dev/null
 
 echo ""
 echo "=========================================="
 echo "Building Neo4j image with dataset $DATASET..."
 echo "=========================================="
-docker build -f Dockerfile_data$DATASET -t neo4j:custom .
+docker build --no-cache -f Dockerfile_data$DATASET -t neo4j:custom .
 
 echo ""
 echo "=========================================="
@@ -62,11 +58,9 @@ echo ""
 if [ "$READY" = true ]; then
     echo "Neo4j is ready!"
 
-    # Give APOC initializer time to run for dataset 3
-    if [ "$DATASET" = "3" ]; then
-        echo "Waiting for APOC to initialize schema..."
-        sleep 5
-    fi
+    # Give APOC initializer time to run
+    echo "Waiting for APOC to initialize schema..."
+    sleep 5
 
     # Verify node count
     COUNT=$(docker exec neo4j cypher-shell -u neo4j -p neo4jtest "MATCH (n) RETURN count(n)" 2>/dev/null | tail -1)

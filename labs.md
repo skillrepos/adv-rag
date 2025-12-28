@@ -1,7 +1,7 @@
 # Gen AI: Understanding and Using RAG
 ## Making LLMs smarter by pairing your data with Gen AI
 ## Session labs 
-## Revision 3.3 - 12/27/25
+## Revision 4.0 - 12/28/25
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -515,138 +515,159 @@ Which movies are comedies?
 </p>
 </br></br>
 
-**Lab 6 - Implementing Agentic RAG**
+**Lab 6 - Hybrid RAG: Semantic Search + Knowledge Graph**
 
-**Purpose: In this lab, we’ll see how to setup an agent using RAG with a tool.**
+**Purpose: In this lab, we'll build a hybrid RAG system that combines semantic search (ChromaDB) with knowledge graph traversal (Neo4j) to get both precision and context in our answers.**
 
-1. In this lab, we'll download a medical dataset, parse it into a vector database, and create an agent with a tool to help us get answers. First,let's take a look at a dataset of information we'll be using for our RAG context. We'll be using a medical Q&A dataset called [**keivalya/MedQuad-MedicalQnADataset**](https://huggingface.co/datasets/keivalya/MedQuad-MedicalQnADataset). You can go to the page for it on HuggingFace.co and view some of it's data or explore it a bit if you want. To get there, either click on the link above in this step or go to HuggingFace.co and search for "keivalya/MedQuad-MedicalQnADataset" and follow the links.
+1. RAG works because semantic search understands meaning. But for precise facts (timeframes, contacts, relationships), a knowledge graph provides structured answers. Combining both gives us the best of both worlds.
+
+For this lab, a knowledge graph has been pre-built from the OmniTech documents. It contains:
+- **Entities**: Products, Policies, TimeFrames, Contacts, Conditions, Fees, ShippingMethods, Documents
+- **Relationships**: APPLIES_TO, HAS_TIMEFRAME, HANDLES, REQUIRES_CONDITION, HAS_FEE, USES_SHIPPING, CONTAINS
+
+You can view it [here](./neo4j/data3/omnitech_policies.csv) if interested.
+
+<br><br>
+  
+2. First, let's create the Neo4j graph database with the OmniTech knowledge graph. Run the commands (similar to lab 5) below.
+
+```
+cd /workspaces/rag/neo4j
+./neo4j-setup.sh 3 &
+```
+
+Wait for the message indicating Neo4j is ready (about 30-60 seconds). The script will:
+- Build a Docker image with the OmniTech schema
+- Start Neo4j container on ports 7474 (web) and 7687 (Bolt)
+- Auto-initialize the knowledge graph via APOC
+
+When done, you will see a message ending with "Then run:    MATCH (n) RETURN count(n);". This is informational and you can just hit *Enter/Return* to get back to the prompt.
+
+![building graph db](./images/ragv2-17.png?raw=true "building graph db")
+
+<br><br>
+
+3. Change back to the code directory. Then we'll build out the hybrid RAG system as lab6.py with the diff and merge process that we've used before. The second command below will start up the editor session.
    
-![dataset on huggingface](./images/rag27.png?raw=true "dataset on huggingface")    
-
-2. Now, let's create the Python file that will pull the dataset, store it in the vector database and invoke an agent with the tool to use it as RAG. First, create a new file for the project.
 ```
-code lab6.py
+cd /workspaces/rag/code
+code -d ../extra/lab6-changes.txt lab6.py
 ```
 
-3. Now, add the imports.
-```
-from datasets import load_dataset
-from langchain_community.document_loaders import DataFrameLoader
-from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.llms import Ollama 
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-from langchain.prompts import ChatPromptTemplate
-from langchain.chains.conversation.memory import ConversationBufferWindowMemory
-from langchain.chains import RetrievalQA
-from langchain.agents import Tool
-from langchain.agents import create_react_agent
-from langchain import hub
-from langchain.agents import AgentExecutor
-```
+![building hybrid code](./images/ragv2-18.png?raw=true "building hybrid code")
 
-4. Next, we pull and load the dataset.
-   
-```
-data = load_dataset("keivalya/MedQuad-MedicalQnADataset", split='train')
-data = data.to_pandas()
-data = data[0:100]
-df_loader = DataFrameLoader(data, page_content_column="Answer")
-df_document = df_loader.load()
-```
+<br><br>
 
-5. Then, we split the text into chunks and load everything into our Chroma vector database.
-```
-from langchain.text_splitter import CharacterTextSplitter
-text_splitter = CharacterTextSplitter(chunk_size=1250,
-                                      separator="\n",
-                                      chunk_overlap=100)
-texts = text_splitter.split_documents(df_document)
+4. What you'll see here is that most of the merges are comment sections explaining what the code does (plus some for the prompt, etc.). You can review and merge them as we've done before. After looking over the change, hover over the middle section and click the arrow to merge. Continue with this process until there are no more differences. Then click on the "X" in the tab at the top to close and save your changes.
 
-# set some config variables for ChromaDB
-CHROMA_DATA_PATH = "vdb_data/"
-embeddings = FastEmbedEmbeddings()  
+![merge and save](./images/ragv2-19.png?raw=true "merge and save")
 
-# embed the chunks as vectors and load them into the database
-db_chroma = Chroma.from_documents(df_document, embeddings, persist_directory=CHROMA_DATA_PATH)
-```
-6. Set up memory for the chat, and choose the LLM.
-```
-conversational_memory = ConversationBufferWindowMemory(
-    memory_key='chat_history',
-    k=4, #Number of messages stored in memory
-    return_messages=True #Must return the messages in the response.
-)
+<br><br>
+ 
 
-llm = Ollama(model="llama3",temperature=0.0)
-```
+5. Now let's run the hybrid RAG demo with the command below (in the *code* directory). This will then be waiting for you to type in a query.
 
-7. Now, define the mechanism to use for the agent and retrieving data. ("qa" = question and answer) 
-```
-qa = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=db_chroma.as_retriever()
-)
-```
-
-8. Define the tool itself (calling the "qa" function we just defined above as the tool).
-from langchain.agents import Tool
-
-```
-#Defining the list of tool objects to be used by LangChain.
-tools = [
-   Tool(
-       name='Medical KB',
-       func=qa.run,
-       description=(
-           'use this tool when answering medical knowledge queries to get '
-           'more information about the topic'
-       )
-   )
-]
-```
-
-8. Create the agent using the LangChain project *hwchase17/react-chat*.
-```
-prompt = hub.pull("hwchase17/react-chat")
-agent = create_react_agent(
-   tools=tools,
-   llm=llm,
-   prompt=prompt,
-)
-
-# Create an agent executor by passing in the agent and tools
-from langchain.agents import AgentExecutor
-agent_executor = AgentExecutor(agent=agent,
-                               tools=tools,
-                               verbose=True,
-                               memory=conversational_memory,
-                               max_iterations=30,
-                               max_execution_time=600,
-                               #early_stopping_method='generate',
-                               handle_parsing_errors=True
-                               )
-```
-
-9. Add the input processing loop.
-```
-while True:
-    query = input("\nQuery: ")
-    if query == "exit":
-        break
-    if query.strip() == "":
-        continue
-    agent_executor.invoke({"input": query})
-```
-10. Now, **save the file** and run the code.
 ```
 python lab6.py
 ```
-11. You can prompt it with queries related to the info in the dataset, like the one below. (You can ignore errors about Attributes or invalid options.)
+
+![running](./images/ragv2-20.png?raw=true "running")
+
+<br><br>
+
+6. Watch the output - the demo asks the same question using three different methods:
+
+**Query:** "What is the return window for Pro-Series equipment and who do I contact?"
+
+You'll see:
+- **METHOD 1: SEMANTIC** - Finds document chunks with similar meaning
+- **METHOD 2: GRAPH** - Traverses Neo4j relationships via Cypher
+- **METHOD 3: HYBRID** - Combines both for precision + context
+
+Each method shows:
+- What it retrieved (chunks vs graph nodes)
+- The LLM-generated answer based on that context
+
+<br><br>
+
+5. Compare the results:
+
+| Method | What it found | Strength |
+|--------|---------------|----------|
+| SEMANTIC | Document chunks mentioning Pro-Series | Good context, handles vocabulary mismatch |
+| GRAPH | Pro_Series → Pro_Series_Return → 14_Days | Precise facts via Cypher traversal |
+| HYBRID | Graph facts + Document context | Best of both worlds |
+
+<br><br>
+
+6. Let's examine the key code. Open the file:
+
 ```
-I have a patient that may have Botulism. How can I confirm the diagnosis?
+code lab6_hybrid.py
 ```
+
+Notice the `HybridRAG` class connects to both databases:
+- **ChromaDB** for semantic search (lines 46-53)
+- **Neo4j** for graph search (lines 55-67)
+
+<br><br>
+
+7. Look at the `graph_search` method (around line 87). This is where Cypher queries traverse relationships:
+
+```python
+# When query mentions "pro-series" and "return"
+cypher = """
+MATCH (prod:Product {name: 'Pro_Series'})<-[:APPLIES_TO]-(pol:Policy)
+WHERE pol.type = 'Return'
+OPTIONAL MATCH (pol)-[:HAS_TIMEFRAME]->(tf:TimeFrame)
+OPTIONAL MATCH (contact:Contact)-[:HANDLES]->(pol)
+RETURN prod, pol, tf, contact
+"""
+```
+
+The graph traverses: `Product ← APPLIES_TO ← Policy → HAS_TIMEFRAME → TimeFrame`
+
+<br><br>
+
+8. The `hybrid_search` method (around line 250) combines both:
+
+```python
+def hybrid_search(self, query: str, k: int = 3) -> List[Dict]:
+    graph_results = self.graph_search(query, k=k)
+    semantic_results = self.semantic_search(query, k=k)
+    # Graph first (precision), then semantic (context)
+    return graph_results + semantic_results
+```
+
+<br><br>
+
+9. Discussion Points:
+- **Semantic search** (ChromaDB) understands MEANING - handles "money back" → "refund"
+- **Graph search** (Neo4j) understands STRUCTURE - traverses entity relationships
+- **Cypher queries** navigate: `Product → Policy → TimeFrame → Contact`
+- **Hybrid** combines both: graph precision + semantic context
+- This mirrors production RAG architectures used by enterprises
+
+<br><br>
+
+10. You can also visualize the knowledge graph. Start a local web server:
+
+```
+cd /workspaces/rag/neo4j/data3/public
+npx http-server
+```
+
+Click the pop-up to open the browser and see the graph visualization with D3.js.
+
+<br><br>
+
+**Key Takeaway:**
+> Semantic search understands MEANING. Graph search understands STRUCTURE. Together they provide comprehensive, accurate answers.
+
+<p align="center">
+**[END OF LAB]**
+</p>
+</br></br>
 
 <p align="center">
 **[END OF LAB]**

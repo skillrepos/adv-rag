@@ -1,92 +1,74 @@
-CREATE (:Document {name: 'Returns_Policy', title: 'Consumer Returns & Refund Policy', version: '2.4', effective_date: '2024-01-01'});
-CREATE (:Document {name: 'Troubleshooting_Manual', title: 'Device Troubleshooting Manual', category: 'Technical Support'});
-CREATE (:Document {name: 'Security_Handbook', title: 'Account Security Handbook', category: 'Security'});
-CREATE (:Document {name: 'Shipping_Guide', title: 'Global Shipping Logistics', category: 'Operations'});
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/omnitech_policies.csv' AS row
 
-CREATE (:Product {name: 'Pro_Series', description: 'Enterprise-grade servers, networking switches, storage arrays', category: 'Enterprise'});
-CREATE (:Product {name: 'Standard_Items', description: 'Regular consumer electronics and accessories', category: 'Consumer'});
-CREATE (:Product {name: 'Software', description: 'Digital software products and licenses', category: 'Digital'});
-CREATE (:Product {name: 'Accessories', description: 'Cables, cases, peripherals', category: 'Consumer'});
+FOREACH (_ in CASE WHEN row.policy_name IS NOT NULL AND row.policy_name <> '' THEN [1] ELSE [] END |
+    MERGE (pol:Policy {name: row.policy_name})
+    SET pol.description = row.policy_description,
+        pol.type = row.policy_type)
 
-CREATE (:Policy {name: 'Standard_Return', description: '30-day return window for standard items', type: 'Return'});
-CREATE (:Policy {name: 'Pro_Series_Return', description: '14-day return window with restocking fee', type: 'Return'});
-CREATE (:Policy {name: 'DOA_Policy', description: 'Defective on Arrival - full refund, free return shipping', type: 'Warranty'});
-CREATE (:Policy {name: 'Holiday_Return', description: 'Extended return window for holiday purchases', type: 'Return'});
-CREATE (:Policy {name: 'Software_Policy', description: 'No returns once license activated', type: 'Return'});
+FOREACH (_ in CASE WHEN row.product_name IS NOT NULL AND row.product_name <> '' THEN [1] ELSE [] END |
+    MERGE (prod:Product {name: row.product_name})
+    SET prod.description = row.product_description,
+        prod.category = row.product_category)
 
-CREATE (:TimeFrame {name: '30_Days', value: '30 days', description: 'Standard return window'});
-CREATE (:TimeFrame {name: '14_Days', value: '14 days', description: 'Pro-Series return window'});
-CREATE (:TimeFrame {name: '7_Days', value: '7 days', description: 'DOA reporting window'});
-CREATE (:TimeFrame {name: '5_7_Business_Days', value: '5-7 business days', description: 'Refund processing time'});
-CREATE (:TimeFrame {name: 'January_31', value: 'Until January 31st', description: 'Holiday return deadline'});
-CREATE (:TimeFrame {name: '48_Hours', value: '48 hours', description: 'Warehouse inspection time'});
+FOREACH (_ in CASE WHEN row.timeframe_name IS NOT NULL AND row.timeframe_name <> '' THEN [1] ELSE [] END |
+    MERGE (tf:TimeFrame {name: row.timeframe_name})
+    SET tf.value = row.timeframe_value,
+        tf.description = row.timeframe_desc)
 
-CREATE (:Contact {name: 'Returns_Email', value: 'returns@omnitech.example.com', type: 'Email', department: 'Returns'});
-CREATE (:Contact {name: 'Returns_Phone', value: '1-800-555-0199', hours: 'Mon-Fri 8AM-8PM EST', type: 'Phone', department: 'Returns'});
-CREATE (:Contact {name: 'Tech_Support', value: 'support@omnitech.example.com', type: 'Email', department: 'Technical Support'});
-CREATE (:Contact {name: 'International_Support', value: 'international-support@omnitech.example.com', type: 'Email', department: 'International'});
+FOREACH (_ in CASE WHEN row.contact_name IS NOT NULL AND row.contact_name <> '' THEN [1] ELSE [] END |
+    MERGE (con:Contact {name: row.contact_name})
+    SET con.value = row.contact_value,
+        con.type = row.contact_type,
+        con.department = row.contact_department,
+        con.hours = row.contact_hours)
 
-CREATE (:Condition {name: 'Like_New', description: 'Original packaging, no signs of use or installation'});
-CREATE (:Condition {name: 'Defective', description: 'Dead on arrival or manufacturer defect within warranty'});
-CREATE (:Condition {name: 'Used', description: 'Shows evidence of use, installation, or modification'});
-CREATE (:Condition {name: 'Damaged', description: 'Physical damage from customer mishandling'});
+FOREACH (_ in CASE WHEN row.condition_name IS NOT NULL AND row.condition_name <> '' THEN [1] ELSE [] END |
+    MERGE (cond:Condition {name: row.condition_name})
+    SET cond.description = row.condition_description)
 
-CREATE (:Fee {name: 'Standard_Restocking', value: '0%', description: 'No fee for Like-New returns'});
-CREATE (:Fee {name: 'Used_Restocking', value: '15-35%', description: 'Fee based on condition assessment'});
-CREATE (:Fee {name: 'Pro_Series_Restocking', value: '15%', description: 'Minimum restocking fee for Pro-Series'});
-CREATE (:Fee {name: 'Return_Shipping_Small', value: '$8.99', description: 'Items under 5 lbs'});
-CREATE (:Fee {name: 'Return_Shipping_Medium', value: '$15.99', description: 'Items 5-20 lbs'});
+FOREACH (_ in CASE WHEN row.fee_name IS NOT NULL AND row.fee_name <> '' THEN [1] ELSE [] END |
+    MERGE (fee:Fee {name: row.fee_name})
+    SET fee.value = row.fee_value,
+        fee.description = row.fee_description)
 
-CREATE (:ShippingMethod {name: 'FedEx_Ground', delivery_time: '3-5 business days', region: 'US'});
-CREATE (:ShippingMethod {name: 'UPS_Ground', delivery_time: '3-5 business days', region: 'US'});
-CREATE (:ShippingMethod {name: 'DHL_International', delivery_time: '7-14 business days', region: 'International'});
-CREATE (:ShippingMethod {name: 'USPS_APO_FPO', delivery_time: '10-21 business days', region: 'Military'});
+FOREACH (_ in CASE WHEN row.shipping_name IS NOT NULL AND row.shipping_name <> '' THEN [1] ELSE [] END |
+    MERGE (ship:ShippingMethod {name: row.shipping_name})
+    SET ship.delivery_time = row.shipping_time,
+        ship.region = row.shipping_region)
 
-MATCH (doc:Document {name: 'Returns_Policy'}), (pol:Policy {name: 'Standard_Return'}) CREATE (doc)-[:CONTAINS]->(pol);
-MATCH (doc:Document {name: 'Returns_Policy'}), (pol:Policy {name: 'Pro_Series_Return'}) CREATE (doc)-[:CONTAINS]->(pol);
-MATCH (doc:Document {name: 'Returns_Policy'}), (pol:Policy {name: 'DOA_Policy'}) CREATE (doc)-[:CONTAINS]->(pol);
-MATCH (doc:Document {name: 'Returns_Policy'}), (pol:Policy {name: 'Holiday_Return'}) CREATE (doc)-[:CONTAINS]->(pol);
-MATCH (doc:Document {name: 'Returns_Policy'}), (pol:Policy {name: 'Software_Policy'}) CREATE (doc)-[:CONTAINS]->(pol);
+FOREACH (_ in CASE WHEN row.document_name IS NOT NULL AND row.document_name <> '' THEN [1] ELSE [] END |
+    MERGE (doc:Document {name: row.document_name})
+    SET doc.title = row.document_title,
+        doc.category = row.document_category)
 
-MATCH (pol:Policy {name: 'Standard_Return'}), (prod:Product {name: 'Standard_Items'}) CREATE (pol)-[:APPLIES_TO]->(prod);
-MATCH (pol:Policy {name: 'Standard_Return'}), (prod:Product {name: 'Accessories'}) CREATE (pol)-[:APPLIES_TO]->(prod);
-MATCH (pol:Policy {name: 'Pro_Series_Return'}), (prod:Product {name: 'Pro_Series'}) CREATE (pol)-[:APPLIES_TO]->(prod);
-MATCH (pol:Policy {name: 'DOA_Policy'}), (prod:Product {name: 'Pro_Series'}) CREATE (pol)-[:APPLIES_TO]->(prod);
-MATCH (pol:Policy {name: 'DOA_Policy'}), (prod:Product {name: 'Standard_Items'}) CREATE (pol)-[:APPLIES_TO]->(prod);
-MATCH (pol:Policy {name: 'Software_Policy'}), (prod:Product {name: 'Software'}) CREATE (pol)-[:APPLIES_TO]->(prod);
+WITH row
+WHERE row.policy_name IS NOT NULL AND row.policy_name <> ''
+MATCH (pol:Policy {name: row.policy_name})
 
-MATCH (pol:Policy {name: 'Standard_Return'}), (tf:TimeFrame {name: '30_Days'}) CREATE (pol)-[:HAS_TIMEFRAME]->(tf);
-MATCH (pol:Policy {name: 'Pro_Series_Return'}), (tf:TimeFrame {name: '14_Days'}) CREATE (pol)-[:HAS_TIMEFRAME]->(tf);
-MATCH (pol:Policy {name: 'DOA_Policy'}), (tf:TimeFrame {name: '7_Days'}) CREATE (pol)-[:HAS_TIMEFRAME]->(tf);
-MATCH (pol:Policy {name: 'Holiday_Return'}), (tf:TimeFrame {name: 'January_31'}) CREATE (pol)-[:HAS_TIMEFRAME]->(tf);
-MATCH (pol:Policy {name: 'Standard_Return'}), (tf:TimeFrame {name: '5_7_Business_Days'}) CREATE (pol)-[:REFUND_PROCESSED_IN]->(tf);
-MATCH (pol:Policy {name: 'Pro_Series_Return'}), (tf:TimeFrame {name: '5_7_Business_Days'}) CREATE (pol)-[:REFUND_PROCESSED_IN]->(tf);
+FOREACH (_ in CASE WHEN row.product_name IS NOT NULL AND row.product_name <> '' THEN [1] ELSE [] END |
+    MERGE (prod:Product {name: row.product_name})
+    MERGE (pol)-[:APPLIES_TO]->(prod))
 
-MATCH (pol:Policy {name: 'Standard_Return'}), (cond:Condition {name: 'Like_New'}) CREATE (pol)-[:REQUIRES_CONDITION]->(cond);
-MATCH (pol:Policy {name: 'Pro_Series_Return'}), (cond:Condition {name: 'Like_New'}) CREATE (pol)-[:REQUIRES_CONDITION]->(cond);
-MATCH (pol:Policy {name: 'DOA_Policy'}), (cond:Condition {name: 'Defective'}) CREATE (pol)-[:REQUIRES_CONDITION]->(cond);
+FOREACH (_ in CASE WHEN row.timeframe_name IS NOT NULL AND row.timeframe_name <> '' THEN [1] ELSE [] END |
+    MERGE (tf:TimeFrame {name: row.timeframe_name})
+    MERGE (pol)-[:HAS_TIMEFRAME]->(tf))
 
-MATCH (cond:Condition {name: 'Like_New'}), (fee:Fee {name: 'Standard_Restocking'}) CREATE (cond)-[:INCURS_FEE]->(fee);
-MATCH (cond:Condition {name: 'Used'}), (fee:Fee {name: 'Used_Restocking'}) CREATE (cond)-[:INCURS_FEE]->(fee);
-MATCH (prod:Product {name: 'Pro_Series'}), (fee:Fee {name: 'Pro_Series_Restocking'}) CREATE (prod)-[:INCURS_FEE]->(fee);
+FOREACH (_ in CASE WHEN row.contact_name IS NOT NULL AND row.contact_name <> '' THEN [1] ELSE [] END |
+    MERGE (con:Contact {name: row.contact_name})
+    MERGE (con)-[:HANDLES]->(pol))
 
-MATCH (con:Contact {name: 'Returns_Email'}), (pol:Policy {name: 'Standard_Return'}) CREATE (con)-[:HANDLES]->(pol);
-MATCH (con:Contact {name: 'Returns_Email'}), (pol:Policy {name: 'Pro_Series_Return'}) CREATE (con)-[:HANDLES]->(pol);
-MATCH (con:Contact {name: 'Returns_Phone'}), (pol:Policy {name: 'Standard_Return'}) CREATE (con)-[:HANDLES]->(pol);
-MATCH (con:Contact {name: 'Returns_Phone'}), (pol:Policy {name: 'Pro_Series_Return'}) CREATE (con)-[:HANDLES]->(pol);
-MATCH (con:Contact {name: 'Tech_Support'}), (pol:Policy {name: 'DOA_Policy'}) CREATE (con)-[:HANDLES]->(pol);
-MATCH (con:Contact {name: 'Tech_Support'}), (doc:Document {name: 'Troubleshooting_Manual'}) CREATE (con)-[:HANDLES]->(doc);
-MATCH (con:Contact {name: 'International_Support'}), (doc:Document {name: 'Shipping_Guide'}) CREATE (con)-[:HANDLES]->(doc);
+FOREACH (_ in CASE WHEN row.condition_name IS NOT NULL AND row.condition_name <> '' THEN [1] ELSE [] END |
+    MERGE (cond:Condition {name: row.condition_name})
+    MERGE (pol)-[:REQUIRES_CONDITION]->(cond))
 
-MATCH (doc:Document {name: 'Troubleshooting_Manual'}), (prod:Product {name: 'Pro_Series'}) CREATE (doc)-[:COVERS]->(prod);
-MATCH (doc:Document {name: 'Troubleshooting_Manual'}), (prod:Product {name: 'Standard_Items'}) CREATE (doc)-[:COVERS]->(prod);
-MATCH (doc:Document {name: 'Security_Handbook'}), (prod:Product {name: 'Software'}) CREATE (doc)-[:COVERS]->(prod);
+FOREACH (_ in CASE WHEN row.fee_name IS NOT NULL AND row.fee_name <> '' THEN [1] ELSE [] END |
+    MERGE (fee:Fee {name: row.fee_name})
+    MERGE (pol)-[:HAS_FEE]->(fee))
 
-MATCH (pol:Policy {name: 'Standard_Return'}), (ship:ShippingMethod {name: 'FedEx_Ground'}) CREATE (pol)-[:USES_SHIPPING]->(ship);
-MATCH (pol:Policy {name: 'Standard_Return'}), (ship:ShippingMethod {name: 'UPS_Ground'}) CREATE (pol)-[:USES_SHIPPING]->(ship);
-MATCH (pol:Policy {name: 'DOA_Policy'}), (ship:ShippingMethod {name: 'FedEx_Ground'}) CREATE (pol)-[:USES_SHIPPING]->(ship);
-MATCH (doc:Document {name: 'Shipping_Guide'}), (ship:ShippingMethod {name: 'DHL_International'}) CREATE (doc)-[:DESCRIBES]->(ship);
-MATCH (doc:Document {name: 'Shipping_Guide'}), (ship:ShippingMethod {name: 'USPS_APO_FPO'}) CREATE (doc)-[:DESCRIBES]->(ship);
+FOREACH (_ in CASE WHEN row.shipping_name IS NOT NULL AND row.shipping_name <> '' THEN [1] ELSE [] END |
+    MERGE (ship:ShippingMethod {name: row.shipping_name})
+    MERGE (pol)-[:USES_SHIPPING]->(ship))
 
-MATCH (pol:Policy {name: 'Standard_Return'}), (fee:Fee {name: 'Return_Shipping_Small'}) CREATE (pol)-[:HAS_SHIPPING_FEE]->(fee);
-MATCH (pol:Policy {name: 'Standard_Return'}), (fee:Fee {name: 'Return_Shipping_Medium'}) CREATE (pol)-[:HAS_SHIPPING_FEE]->(fee);
+FOREACH (_ in CASE WHEN row.document_name IS NOT NULL AND row.document_name <> '' THEN [1] ELSE [] END |
+    MERGE (doc:Document {name: row.document_name})
+    MERGE (doc)-[:CONTAINS]->(pol))

@@ -623,7 +623,7 @@ and the document context for explanations. If information isn't available, say s
                     "stream": False,             # Get complete response at once
                     "options": {"temperature": 0.3}  # Lower = more focused/deterministic
                 },
-                timeout=60  # Wait up to 60 seconds for response
+                timeout=120  # Wait up to 120 seconds for response
             )
 
             if response.status_code == 200:
@@ -779,5 +779,4 @@ def run_demo():
 if __name__ == "__main__":
     # Run the interactive demo when script is executed directly
     run_demo()
-
 

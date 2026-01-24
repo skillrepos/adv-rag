@@ -665,6 +665,320 @@ After that, refresh the page and try again. You may still have to click through 
 </p>
 </br></br>
 
+**Lab 7 - RAG Evaluation and Quality Metrics**
+
+**Purpose: In this lab, we'll learn how to evaluate RAG system quality - a critical concern for enterprise deployments where accuracy, reliability, and answer traceability are paramount.**
+
+1. You should still be in the *code* subdirectory. We're going to build a RAG evaluation system that measures retrieval quality, answer accuracy, and detects potential hallucinations. First, let's examine our evaluation implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
+
+```
+code -d ../extra/lab7_eval_complete.txt lab7.py
+```
+
+<br><br>
+
+2. Once you have the diff view open, take a moment to look at the structure in the complete version on the left. Notice the key evaluation metrics:
+   - **Context Relevance**: How relevant are retrieved chunks to the question?
+   - **Answer Groundedness**: Is the answer supported by the context?
+   - **Answer Completeness**: Does the answer address all parts of the question?
+   - **Hallucination Detection**: Is the LLM making unsupported claims?
+
+<br><br>
+
+3. Now, merge the code segments from the complete file (left side) into the skeleton file (right side) by clicking the arrow pointing right in the middle bar for each difference. Start with the docstrings and comments at the top, then work your way down through the evaluation methods.
+
+<br><br>
+
+4. After merging all the changes, double-check that there are no remaining diffs (red blocks on the side). Then close the diff view by clicking the "X" in the tab.
+
+<br><br>
+
+5. Now let's run our RAG evaluation system:
+
+```
+python lab7.py
+```
+
+The system will connect to the vector database we created earlier and present you with options.
+
+<br><br>
+
+6. You should see a menu with options to evaluate a single question or run a full test suite. Select option **1** to evaluate a single question. Enter a question like:
+
+```
+What is the return policy for products?
+```
+
+<br><br>
+
+7. Watch the evaluation process - the system will:
+   - **[1/5]** Retrieve relevant context chunks
+   - **[2/5]** Generate an answer using the LLM
+   - **[3/5]** Evaluate context relevance (LLM-as-judge)
+   - **[4/5]** Check answer groundedness (is it supported by context?)
+   - **[5/5]** Assess answer completeness
+
+<br><br>
+
+8. After evaluation, you'll see color-coded scores:
+   - **GREEN (0.8+)**: Excellent quality
+   - **YELLOW (0.6-0.8)**: Acceptable, room for improvement
+   - **RED (below 0.6)**: Needs attention
+
+Notice the **OVERALL SCORE** which weights the metrics based on enterprise priorities (groundedness is most important at 40%).
+
+<br><br>
+
+9. Try a few more questions to see how scores vary:
+
+```
+How do I reset my password?
+What are the shipping costs?
+Who is the CEO of OmniTech?
+```
+
+Notice how the last question (about the CEO) should show lower groundedness if that information isn't in the documents.
+
+<br><br>
+
+10. Now select option **2** to run the full test suite. This runs evaluation on a predefined set of questions with expected keywords - simulating automated regression testing.
+
+<br><br>
+
+11. After the test suite completes, you'll see aggregate metrics for your entire RAG system. This is how enterprises monitor RAG quality:
+   - Track metrics over time
+   - Set quality thresholds for production readiness
+   - Compare different RAG configurations
+
+<br><br>
+
+12. Discussion Points:
+   - **Why is groundedness critical?** Hallucinated answers can cause real business damage
+   - **LLM-as-judge approach**: Using one LLM to evaluate another LLM's output
+   - **Automated testing**: Test suites enable continuous quality monitoring
+   - **Enterprise compliance**: Evaluation metrics provide audit trails for regulated industries
+
+<br><br>
+
+<p align="center">
+**[END OF LAB]**
+</p>
+</br></br>
+
+**Lab 8 - Query Transformation and Re-ranking**
+
+**Purpose: In this lab, we'll implement advanced retrieval techniques that dramatically improve RAG quality - query transformation (expansion, multi-query, HyDE) and two-stage retrieval with re-ranking.**
+
+1. You should still be in the *code* subdirectory. We're going to build an advanced RAG system that transforms user queries for better retrieval and re-ranks results for higher precision. Use the diff command to examine the implementation:
+
+```
+code -d ../extra/lab8_rerank_complete.txt lab8.py
+```
+
+<br><br>
+
+2. Once you have the diff view open, look at the key techniques in the complete version:
+   - **Query Expansion**: Add synonyms and related terms
+   - **Multi-Query**: Generate multiple query variations
+   - **HyDE**: Generate hypothetical answers to search for
+   - **Re-ranking**: Score and reorder retrieved chunks
+
+<br><br>
+
+3. Merge all the code segments from the complete file into the skeleton file, starting from the top. Pay attention to the prompt templates used for each transformation technique.
+
+<br><br>
+
+4. After merging, close the diff view. Now let's run the advanced RAG demo:
+
+```
+python lab8.py
+```
+
+<br><br>
+
+5. You'll see a menu explaining the different retrieval methods. Each has a color code:
+   - **RED (BASIC)**: Standard vector search (baseline)
+   - **YELLOW (EXPANSION)**: Query expanded with synonyms
+   - **GREEN (MULTI-Q)**: Multiple query variations
+   - **CYAN (HYDE)**: Hypothetical document embedding
+   - **MAGENTA (RERANK)**: Two-stage with re-ranking
+
+<br><br>
+
+6. Select option **1** to compare all methods on a query. Enter a short, ambiguous query:
+
+```
+money back
+```
+
+This is intentionally vague - notice how the different methods handle vocabulary mismatch (documents might say "refund" or "return" instead of "money back").
+
+<br><br>
+
+7. Watch the output as each method processes the query:
+   - **Query Expansion** adds synonyms like "refund", "reimbursement"
+   - **Multi-Query** generates variations like "refund process", "return policy"
+   - **HyDE** generates an ideal answer and searches for similar content
+   - **Re-ranking** retrieves more candidates then scores them precisely
+
+<br><br>
+
+8. Compare the answers from each method. Notice how:
+   - Basic search might miss relevant documents
+   - Expanded queries find more related content
+   - HyDE often finds the most relevant passages
+   - Re-ranking improves precision (relevant docs ranked higher)
+
+<br><br>
+
+9. Try another query with specific terminology that might not match exactly:
+
+```
+broken device warranty
+```
+
+<br><br>
+
+10. Now select option **2** to try individual techniques. Choose **3 (HyDE)** and enter:
+
+```
+how long to return
+```
+
+Notice how HyDE generates a hypothetical answer like "Customers may return products within 30 days..." and uses THAT to search - bridging the gap between question-style and answer-style text.
+
+<br><br>
+
+11. Try the **Re-ranking** technique (option 4) with:
+
+```
+shipping options and costs
+```
+
+Notice how re-ranking retrieves 6 candidates (2x the final count) and then scores each one's relevance to return only the top 3 most relevant.
+
+<br><br>
+
+12. Discussion Points:
+   - **Query-document mismatch**: Users ask questions, but documents contain answers
+   - **HyDE insight**: Searching with answer-like text finds answer-containing documents
+   - **Re-ranking trade-off**: More compute for higher precision
+   - **Combining techniques**: Production systems often use multiple approaches
+   - **Enterprise value**: Better retrieval = better answers from same knowledge base
+
+<p align="center">
+**[END OF LAB]**
+</p>
+</br></br>
+
+**Lab 9 - Corrective RAG (CRAG)**
+
+**Purpose: In this lab, we'll implement Corrective RAG (CRAG), an advanced technique where the system evaluates its own retrieval quality and takes corrective action when results are insufficient - including falling back to web search.**
+
+1. You should still be in the *code* subdirectory. We're going to build a self-correcting RAG system that "knows when it doesn't know" and takes corrective action. Use the diff command to examine the implementation:
+
+```
+code -d ../extra/lab9_crag_complete.txt lab9.py
+```
+
+<br><br>
+
+2. Once you have the diff view open, look at the CRAG workflow in the complete version:
+   - **Retrieval Grader**: Evaluates relevance of each retrieved document
+   - **Decision Logic**: CORRECT / AMBIGUOUS / INCORRECT based on scores
+   - **Corrective Actions**: Web search fallback, document filtering
+   - **Knowledge Refinement**: Extract only relevant information
+   - **Answer Generation**: Generate with confidence-appropriate prompts
+
+<br><br>
+
+3. Merge all the code segments from the complete file into the skeleton file. Pay special attention to the evaluation prompts and decision thresholds.
+
+<br><br>
+
+4. After merging, close the diff view. Now let's run the CRAG demo:
+
+```
+python lab9.py
+```
+
+<br><br>
+
+5. You'll see a menu with options and the CRAG decision legend:
+   - **GREEN (CORRECT)**: High relevance - use retrieved documents
+   - **YELLOW (AMBIGUOUS)**: Partial relevance - refine + supplement with web
+   - **RED (INCORRECT)**: Low relevance - fall back to web search
+
+<br><br>
+
+6. Select option **1** to run a CRAG query. First, try a question that SHOULD be in the knowledge base:
+
+```
+What is the return policy for products?
+```
+
+Watch the 6-step CRAG pipeline execute:
+- Retrieves 5 documents (more than typical RAG)
+- Evaluates each document's relevance (0.0-1.0)
+- Makes a decision (likely CORRECT for this query)
+- Uses filtered documents without web search
+- Refines knowledge and generates answer
+
+<br><br>
+
+7. Notice the visual relevance bars showing each document's score. Documents above 0.7 are considered highly relevant (green), 0.4-0.7 are ambiguous (yellow), and below 0.4 are irrelevant (red).
+
+<br><br>
+
+8. Now try a question that's likely NOT in the knowledge base:
+
+```
+What is the current stock price of OmniTech?
+```
+
+Watch the system detect low relevance and trigger web search (simulated). This is CRAG in action - it "knows when it doesn't know."
+
+<br><br>
+
+9. Try an ambiguous query that might have partial coverage:
+
+```
+What are the best practices for device maintenance?
+```
+
+Notice how CRAG might mark this as AMBIGUOUS, keeping some retrieved documents while supplementing with web search.
+
+<br><br>
+
+10. Now select option **2** to compare CRAG vs Standard RAG on the same question. Enter:
+
+```
+How do I contact support for warranty issues?
+```
+
+Compare the answers - CRAG should provide a more complete response by intelligently filtering or supplementing the context.
+
+<br><br>
+
+11. Try the comparison with a question outside the knowledge base:
+
+```
+What are the latest AI developments in 2024?
+```
+
+Notice how Standard RAG might hallucinate or give a vague answer, while CRAG recognizes the retrieval failure and seeks external information.
+
+<br><br>
+
+12. Discussion Points:
+   - **Self-awareness**: CRAG "knows when it doesn't know" - critical for enterprise trust
+   - **Graceful degradation**: Falls back to external search rather than hallucinating
+   - **Relevance thresholds**: Tunable parameters (0.7/0.4) for your quality requirements
+   - **Audit trail**: CRAGResult tracks every decision for compliance/debugging
+   - **Production patterns**: Real systems use actual web search APIs (Google, Bing, Tavily)
+   - **Cost trade-off**: More LLM calls for evaluation, but better answer quality
+
 <p align="center">
 **[END OF LAB]**
 </p>

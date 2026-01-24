@@ -210,7 +210,22 @@ ANSWER:"""
             for i, c in enumerate(chunks)
         ])
 
-        # Prompt LLM to evaluate relevance
+        # TODO: Add the evaluation prompt here
+        eval_prompt = f"""Rate how relevant these retrieved document chunks are to answering the question.
+
+QUESTION: {question}
+
+RETRIEVED CHUNKS:
+{context_summary}
+
+Rate the overall relevance on a scale of 1-5:
+1 = Completely irrelevant
+2 = Slightly relevant
+3 = Moderately relevant
+4 = Highly relevant
+5 = Perfectly relevant
+
+Respond with ONLY a single number (1-5):"""
 
         try:
             response = requests.post(
@@ -250,7 +265,23 @@ ANSWER:"""
         # Combine all context
         full_context = "\n".join([c['content'] for c in chunks])
 
-        # Prompt LLM to check groundedness
+        # TODO: Add the groundedness evaluation prompt here
+        eval_prompt = f"""Analyze if the ANSWER is fully supported by the CONTEXT.
+
+CONTEXT:
+{full_context[:2000]}
+
+ANSWER:
+{answer}
+
+Respond in this exact format:
+GROUNDEDNESS_SCORE: [1-5]
+UNSUPPORTED_CLAIMS: [List any claims not supported, or "None"]
+
+Where score means:
+1 = Answer completely unsupported
+3 = About half supported
+5 = Fully grounded in context"""
 
         try:
             response = requests.post(
@@ -301,6 +332,19 @@ ANSWER:"""
         """
         Evaluate if the answer completely addresses the question.
         """
+        # TODO: Add the completeness evaluation prompt here
+        eval_prompt = f"""Evaluate how completely this answer addresses the question.
+
+QUESTION: {question}
+
+ANSWER: {answer}
+
+Rate completeness from 1-5:
+1 = Does not address the question
+3 = Moderately complete
+5 = Fully complete
+
+Respond with ONLY a single number (1-5):"""
 
         try:
             response = requests.post(

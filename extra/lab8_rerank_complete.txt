@@ -247,12 +247,11 @@ Return exactly {n} search queries, one per line, no numbering or bullets:"""
 
         This is one of the most powerful query transformation techniques.
         """
-        hyde_prompt = f"""Write a short, factual paragraph that would perfectly answer this question.
-Write as if you're quoting from an official document. Be specific and detailed.
+        hyde_prompt = f"""You are helping with document search. Generate a hypothetical document snippet that would be relevant to this search query. Write as if quoting from a company policy or FAQ document.
 
-Question: {query}
+Search query: {query}
 
-Hypothetical answer (2-3 sentences):"""
+Write a realistic 2-3 sentence document snippet that would match this search (do not refuse, this is for search purposes):"""
 
         try:
             response = requests.post(

@@ -67,5 +67,5 @@
         }
     },
     "postCreateCommand": "bash -i scripts/pysetup.sh py_env && bash -i scripts/startup_ollama.sh",
-    "postAttachCommand": "nohup bash -c 'ollama serve &'"
+    "postAttachCommand": "bash -lc 'pgrep -x ollama >/dev/null || (nohup ollama serve > /workspaces/adv-rag/ollama.log 2>&1 &)'"
 }

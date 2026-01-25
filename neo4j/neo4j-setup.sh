@@ -1,4 +1,4 @@
- #!/bin/bash
+  #!/bin/bash
   CONTAINER_NAME="neo4j"
   IMAGE_NAME="neo4j:custom"
   DATASET="$1"
@@ -59,8 +59,9 @@
   fi
 
   echo "Neo4j is ready!"
-  echo "Waiting for APOC to initialize schema..."
-  sleep 10
+  echo "Loading schema from /var/lib/neo4j/db_init/schema.cypher..."
+  docker exec neo4j cypher-shell -u neo4j -p neo4jtest -f /var/lib/neo4j/db_init/schema.cypher
+  echo "Schema loaded!"
 
   echo ""
   echo "=========================================="

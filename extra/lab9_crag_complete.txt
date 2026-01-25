@@ -215,23 +215,23 @@ class CorrectiveRAG:
         Returns:
             Float between 0.0 (irrelevant) and 1.0 (highly relevant)
         """
-        eval_prompt = f"""You are a relevance grader. Evaluate if this document contains information useful for answering the question.
+        eval_prompt = f"""You are a strict relevance grader. Evaluate if this document contains information that can actually ANSWER the question - not just whether it's from the same company or domain.
 
 QUESTION: {query}
 
 DOCUMENT: {document[:800]}
 
-Grade the document's relevance:
-- Is the document about the same topic as the question?
-- Does it contain information that could help answer the question?
-- Would this document be useful context for generating an answer?
+Be strict: The document must contain specific information needed to answer the question.
+- Being from the same company is NOT enough
+- Being about a related topic is NOT enough
+- The document must have facts/data that directly help answer THIS specific question
 
 Rate from 1-5:
-1 = Completely irrelevant (wrong topic entirely)
-2 = Tangentially related (same domain but doesn't help)
-3 = Partially relevant (some useful information)
-4 = Relevant (contains helpful information)
-5 = Highly relevant (directly answers the question)
+1 = No relevant information (wrong topic, or right company but wrong content)
+2 = Tangentially related (mentions related concepts but can't answer the question)
+3 = Partially relevant (some useful info but incomplete)
+4 = Relevant (contains information that helps answer the question)
+5 = Highly relevant (directly answers the question with specific details)
 
 Respond with ONLY a number (1-5):"""
 

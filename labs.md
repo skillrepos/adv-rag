@@ -1,5 +1,5 @@
 # Advanced RAG
-## Making LLMs smarter by pairing your data with Gen AI
+## Advanced Techniques for Leveraging your Data with GenAI
 ## Session labs 
 ## Revision 1.0 - 01/25/26
 

@@ -368,7 +368,7 @@ When done, you will see a message ending with "Then run:    MATCH (n) RETURN cou
    
 ```
 cd /workspaces/rag/code
-code -d ../extra/lab6-changes.txt lab6.py
+code -d ../extra/lab4-changes.txt lab4.py
 ```
 
 ![building hybrid code](./images/ragv2-18.png?raw=true "building hybrid code")

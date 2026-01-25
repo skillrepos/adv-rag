@@ -30,7 +30,7 @@ After the initial startup, it will run a script to setup the python environment 
 
 The codespace is ready to use when you see a prompt like the one shown below in its terminal.
 
-![Ready to use](./images/rag02.png?raw=true "Ready to use")
+![Ready to use](./images/arag2.png?raw=true "Ready to use")
 
 
 **4. Open up the *labs.md* file so you can follow along with the labs.**

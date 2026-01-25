@@ -21,7 +21,7 @@ cd code
 
 2. We have several data files that we'll be using that are for a ficticious company. The files are located in the *data/knowledge_base_pdfs* directory. [knowledge base pdfs](./data/knowledge_base_pdfs) You can browse them via the explorer view. Here's a [direct link](./data/knowledge_base_pdfs/OmniTech_Returns_Policy_2024.pdf) to an example one if you want to open it and take a look at it.
 
-![PDF data file](./images/rag2v-15.png?raw=true "PDF data file") 
+![PDF data file](./images/ragv2-15.png?raw=true "PDF data file") 
 
 <br><br>
 
@@ -40,9 +40,9 @@ code ../tools/index_pdfs.py
 python ../tools/index_code.py
 ```
 
-![Running code indexer](./images/aia-1-35.png?raw=true "Running code indexer")
+![Running code indexer](./images/arag3.png?raw=true "Running code indexer")
 
-![Running code indexer](./images/aia-1-36.png?raw=true "Running code indexer")
+![Running code indexer](./images/arag4.png?raw=true "Running code indexer")
 
 <br><br>
 
@@ -65,7 +65,7 @@ You can also pass search queries directly on the command line with the *--query*
   python ../tools/search.py --query "convert text to numbers" --target code
 ```
 
-![Running search](./images/ragv2-8.png?raw=true "Running search")
+![Running search](./images/arag5.png?raw=true "Running search")
 
 <br><br>
 
@@ -75,7 +75,7 @@ You can also pass search queries directly on the command line with the *--query*
 python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 ```
 
-![Indexing PDFs](./images/ragv2-9.png?raw=true "Indexing PDFs")
+![Indexing PDFs](./images/arag6.png?raw=true "Indexing PDFs")
 
 <br><br>
 
@@ -87,7 +87,7 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
   python ../tools/search.py --query "exchange damaged item" --target pdfs
 ```
 
-![PDF search](./images/ragv2-10.png?raw=true "PDF search")
+![PDF search](./images/arag7.png?raw=true "PDF search")
 
 <br><br>
 

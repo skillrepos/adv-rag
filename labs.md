@@ -91,7 +91,7 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 
 <br><br>
 
-8. Keep in mind that this is not trying to intelligently answer your prompts at this point. This is a simple semantic search to find related chunks. In lab 3, we'll add in the LLM to give us better responses. 
+9. Keep in mind that this is not trying to intelligently answer your prompts at this point. This is a simple semantic search to find related chunks. In lab 3, we'll add in the LLM to give us better responses. 
 
 <br>
 <p align="center">

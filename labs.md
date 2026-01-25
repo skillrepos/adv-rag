@@ -100,11 +100,11 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 </br></br>
 
 
-**Lab 2: Building a Complete RAG System**
+**Lab 2: Building a Complete RAG System with Vector DBs**
 
-**Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that retrieves relevant context from our vector database and uses an LLM to generate intelligent, grounded answers.**
+**Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that uses content from our vector db and an LLM to generate intelligent, grounded answers.**
 
-1. You should still be in the *rag* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 2 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, we need to bring down a smaller model to use with these labs. Use the Ollama command below:
+1. You should still be in the *code* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 2 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, we need to bring down a smaller model to use with these labs. Use the Ollama command below:
 
 ```
 ollama pull llama3.2:1b
@@ -221,15 +221,11 @@ Notice how the system should say it doesn't have that information (rather than m
 </br></br>
 
 
-**Lab 3 - Implementing Graph RAG with Frameworks and LLMs**
+**Lab 3 - Implementing Graph RAG with Frameworks**
 
 **Purpose: In this lab, we'll see how to simply implement Graph RAG by leveraging frameworks and using LLMs to help generate queries.**
 
-1. In our last lab, we hardcoded Cypher queries and worked more directly with the Graph database. Let's see how we can simplify this.
-
-<br><br>
-
-2. First, we need a different graph database. Again, we'll use a docker image for this that is already populated with data for us. Change to the neo4j directory and run the script, but note the different parameter ("2" instead of "1"). This will take a few minutes to build and start. Be sure to add the "&" to run this in the background.
+1. To do this lab, we need a graph database. We'll use a docker image for this that is already populated with data for us. Change to the neo4j directory and run the script command below. This will take a few minutes to build and start. Be sure to add the "&" to run this in the background.
 
 (When it is ready, you may see a "*INFO  [neo4j/########] successfully initialized:*" message or one that says "naming to docker.io/library/neo4j:custom".) Just hit *Enter* and you can change back to the *workspaces/rag* subdirectory. 
 
@@ -241,7 +237,7 @@ cd ..
 
 <br><br>
 
-3. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/rag) when you run these commands.**
+2. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/rag) when you run these commands.**
 
 ```
 npm i -g http-server
@@ -327,7 +323,6 @@ python lab5.py
 Who starred in Star Trek : Generations?
 Which movies are comedies?
 ```
-
 
 <p align="center">
 **[END OF LAB]**

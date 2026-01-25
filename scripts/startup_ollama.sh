@@ -68,9 +68,11 @@ echo "Step 4: Checking for llama3.2:3b model..."
 if ollama list | grep -q "llama3.2:3b"; then
     echo "✓ llama3.2:3b model already present"
 else
-    echo "  Pulling llama3.2:3b model (this may take a few minutes)..."
+    echo "  Pulling llama3.2 models (this may take a few minutes)..."
     ollama pull llama3.2:3b
-    echo "✓ llama3.2:3b model downloaded"
+    ollama pull llama3.2:latest
+    ollama pull llama3.2:1b
+    echo "✓ llama3.2 models downloaded"
 fi
 echo ""
 
@@ -85,67 +87,9 @@ curl -s -X POST http://localhost:11434/api/generate -d '{
 echo "✓ Model warmed up and ready"
 echo ""
 
-# Step 6: Set up color wrapper and aliases for lab exercises
-echo "Step 6: Setting up color aliases for lab exercises..."
 
-# Create a dedicated file for ollama colors
-cat > ~/.ollama_colors.sh << 'EOF'
-# ======================================
-# Ollama Color Wrapper for Labs
-# ======================================
 
-# Main wrapper function - reads color AND context from environment variables
-ollama() {
-    if [ "$1" = "run" ]; then
-        local color="${OLLAMA_COLOR:-\033[1;37m}"
-        local context="${OLLAMA_CONTEXT:-}"
-
-        # Print context label if set
-        if [ -n "$context" ]; then
-            echo -e "\n${color}${context}\033[0m"
-        fi
-
-        # Print model output in color
-        echo -e "${color}"
-        command ollama "$@"
-        echo -e "\033[0m"
-    else
-        command ollama "$@"
-    fi
-}
-
-# Quick color switchers - just type the color name!
-alias cyan="export OLLAMA_COLOR='\033[1;36m'; export OLLAMA_CONTEXT=''"
-alias green="export OLLAMA_COLOR='\033[1;32m'; export OLLAMA_CONTEXT=''"
-alias yellow="export OLLAMA_COLOR='\033[1;33m'; export OLLAMA_CONTEXT=''"
-alias blue="export OLLAMA_COLOR='\033[1;34m'; export OLLAMA_CONTEXT=''"
-alias magenta="export OLLAMA_COLOR='\033[1;35m'; export OLLAMA_CONTEXT=''"
-alias white="export OLLAMA_COLOR='\033[1;37m'; export OLLAMA_CONTEXT=''"
-
-# Discipline-specific colors with context labels
-alias ds-color="export OLLAMA_COLOR='\033[1;34m'; export OLLAMA_CONTEXT='📊 Context: Data Science'"
-alias ai-color="export OLLAMA_COLOR='\033[1;35m'; export OLLAMA_CONTEXT='📋 Context: Traditional AI'"
-alias ml-color="export OLLAMA_COLOR='\033[1;32m'; export OLLAMA_CONTEXT='🎯 Context: Machine Learning'"
-alias dl-color="export OLLAMA_COLOR='\033[1;36m'; export OLLAMA_CONTEXT='🧠 Context: Deep Learning'"
-alias gen-color="export OLLAMA_COLOR='\033[1;33m'; export OLLAMA_CONTEXT='✨ Context: Generative AI'"
-EOF
-
-# Add source line to .bashrc if not already present
-if ! grep -q ".ollama_colors.sh" ~/.bashrc; then
-    echo "" >> ~/.bashrc
-    echo "# Source Ollama color aliases for labs" >> ~/.bashrc
-    echo "[ -f ~/.ollama_colors.sh ] && source ~/.ollama_colors.sh" >> ~/.bashrc
-    echo "✓ Color aliases configured in ~/.bashrc"
-else
-    echo "✓ Color aliases already configured in ~/.bashrc"
-fi
-
-# Source the file NOW to make aliases available immediately
-source ~/.ollama_colors.sh
-echo "✓ Color aliases loaded and ready to use"
-echo ""
-
-# Step 7: Display status
+# Step 6: Display status
 echo "========================================"
 echo "Status: Ollama Ready for Labs"
 echo "========================================"
@@ -156,22 +100,14 @@ echo ""
 echo "Ollama API endpoint: http://localhost:11434"
 echo "Ollama PID: $OLLAMA_PID"
 echo ""
-echo "Color aliases available:"
-echo "  ds-color  - Data Science (Blue)"
-echo "  ai-color  - Traditional AI (Magenta)"
-echo "  ml-color  - Machine Learning (Green)"
-echo "  dl-color  - Deep Learning (Cyan)"
-echo "  gen-color - Generative AI (Yellow)"
-echo ""
-echo "Usage: Type 'ds-color' then run your ollama commands"
-echo "       Context labels will appear before model output"
+
 echo ""
 echo "To stop Ollama later, run:"
 echo "  kill $OLLAMA_PID"
 echo "  or use: pkill ollama"
 echo ""
 
-# Step 8: Stop Ollama process to allow postAttach command to restart it
+# Step 7: Stop Ollama process to allow postAttach command to restart it
 echo "Stopping Ollama process ($OLLAMA_PID) so it can be managed by postAttach in devcontainer.json..."
 kill $OLLAMA_PID
 sleep 1

@@ -1,124 +1,20 @@
-# Gen AI: Understanding and Using RAG
+# Advanced RAG
 ## Making LLMs smarter by pairing your data with Gen AI
 ## Session labs 
-## Revision 4.0 - 12/28/25
+## Revision 1.0 - 01/25/26
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
 **NOTE: To copy and paste in the codespace, you may need to use keyboard commands - CTRL-C and CTRL-V. Chrome may work best for this.**
 
-**Lab 1 - Grounding data by augmenting prompts**
+**Lab 1 - Working with Vector Databases**
 
-**Purpose: In this lab, we’ll see a basic example of augmenting a prompt by retrieving context from a data file.**
+**Purpose: In this lab, we’ll get a reminder on how to use vector databases for storing supporting data and doing similarity searches.**
 
-1. In our repository, we have a set of Python programs to help us illustrate and work with concepts in the labs. The first set are in the *code* subdirectory. Go to the *TERMINAL* tab in the bottom part of your codespace and change into that directory.
+1. For this lab and the following ones, we'll be using files in the *code* subdirectory. Change to that directory.
 
 ```
 cd code
-```
-<br><br>
-
-2. For this lab, we will simulate "retrieving" data from the Troubleshooting and Security manuals for a fictitious company called "Omnitech". Run the command below to create a text-based context file using information from the provided documents.
-
-```
-cat <<EOF > ../data/omnitech_context.txt
-OmniTech Force Restart: Press and hold the Power button for exactly 10 seconds.
-OmniTech Password Policy (v5.2): Accounts created after Jan 1, 2024, must be 8+ chars and cannot contain dictionary words like 'omnitech'.
-OmniTech Holiday Returns: Items bought Nov 1 - Dec 25 can be returned until Jan 31.
-EOF
-```
-<br><br>
-
-
-3. Open the starter script [lab1.py](./genai/lab1.py) in the editor.
-
-```
-code lab1.py
-```
-
-<br><br>
-
-
-4. Modify the prompt on line 17 to ask a highly specific question about OmniTech's internal procedures. This tests the LLM's "base" knowledge:
-
-```python
-"prompt": "How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?:\n\n",
-```
-
-![prompt 1](./images/ragv2-1.png?raw=true "prompt 1") 
-
-<br><br>
-
-5. Save the file (CTRL+S or CMD+S) and run it. Observe the result: The AI will likely give a generic answer (like "usually 5-10 seconds") or admit it doesn't have enough information or details.
-
-```bash
-python lab1.py
-```
-
-
-![first run](./images/ragv2-3.png?raw=true "first run") 
-
-<br><br>
-
-6. Now, let’s add the "Retrieval" step. At the top of your script (after the imports), add the code to read the OmniTech context you created:
-
-```python
-# Read the proprietary OmniTech documentation snippet
-with open("../data/omnitech_context.txt", "r") as file:
-    omnitech_info = file.read()
-```
-
-![read context](./images/ragv2-7.png?raw=true "read context") 
-
-<br><br>
-
-7. Update the prompt to include this context. Change the "prompt" line to use an f-string that injects the documentation:
-
-```python
-"prompt": f"Using the OmniTech Manuals below, answer the user question.\n\nManuals: {omnitech_info}\n\nQuestion: How long do I need to hold the power button to force restart an OmniTech device, and what is the return deadline for a gift bought on December 10th?:\n\n",
-```
-
-![prompt 2](./images/ragv2-4.png?raw=true "prompt 2") 
-
-
-<br><br>
-
-8. Save your changes (CTRL+S or CMD+S).
-
-<br><br>
-
-9. Run the script again:
-
-```bash
-python lab1.py
-```
-
-<br><br>
-
-10. Verify the success: Notice how the AI now provides the exact "10 seconds" requirement and the "January 31" holiday deadline found in the context.
-
-![run 2](./images/ragv2-6.png?raw=true "run 2") 
-
-<br><br>
-
-11. Discussion Point: Why didn't we just "train" the model on this data? Training is expensive and slow. By simply "attaching" the relevant page of the manual to the prompt, we updated the model's knowledge in milliseconds.
-
-<br><br>
-    
-<p align="center">
-**[END OF LAB]**
-</p>
-</br></br>
-
-
-**Lab 2 - Working with Vector Databases**
-
-**Purpose: In this lab, we’ll learn about how to use vector databases for storing supporting data and doing similarity searches.**
-
-1. For this lab and the following ones, we'll be using files in the *rag* subdirectory. Change to that directory.
-
-```
-cd data
 ```
 
 <br><br>
@@ -204,7 +100,7 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 </br></br>
 
 
-**Lab 3: Building a Complete RAG System**
+**Lab 2: Building a Complete RAG System**
 
 **Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that retrieves relevant context from our vector database and uses an LLM to generate intelligent, grounded answers.**
 
@@ -324,87 +220,10 @@ Notice how the system should say it doesn't have that information (rather than m
 </p>
 </br></br>
 
-**Lab 4 - Implementing Graph RAG with Neo4j**
 
-**Purpose: In this lab, we'll see how to implement Graph RAG by querying a Neo4j database and using Ollama to generate responses.**
+**Lab 3 - Implementing Graph RAG with Frameworks and LLMs**
 
-1. For this lab, we'll need a neo4j instance running. We'll use a docker image for this that is already populated with data for us. There is a shell script named [**neo4j/neo4j-setup.sh**](./neo4j/neo4j-setup.sh) that you can run to start the neo4j container running. Change to the neo4j directory, set an environment variable for the DOCKER version and run the script. This will take a few minutes to build and start. Afterwards you can change back to the *code* subdirectory. Be sure to include the "&" to run this in the background.
-
-```
-cd /workspaces/rag/neo4j
-
-export DOCKER_API_VERSION=1.43
-
-./neo4j-setup.sh 1 &
-
-```
-
-<br><br>
-
-2. When done, you may see an "INFO Started" or just a "naming to docker.io/library/neo4j:custom" message. The container should then be running. You can just hit *Enter* and do a *docker ps* command to verify you see a "neo4j:custom" container with "Up # seconds" in the STATUS column.
-
-```
-docker ps
-```
-![container check](./images/ragv2-14.png?raw=true "container check")
-
-<br><br>
-
-3. For the next steps, make sure you're back in the *code* directory. In here, we have a simple Python program to interact with the graph database and query it. The file name is lab4.py. Open the file either by clicking on [**code/lab4.py**](./code/lab4.py) or by entering the *code* command below in the codespace's terminal.
-
-```
-cd ../code
-code lab4.py
-```
-
-<br><br>
-
-4. You can look around this file to see how it works. It simply connects to the graph database, does a Cypher query (see the function *query_graph* on line 6), and returns the results. For this one, the graph db was initialized with information that *Ada Lovelace, a Mathematician, worked with Alan Turing, a Computer Scientist*.
-
-<br><br>
-
-5. When done looking at the code, go ahead and execute the program using the command below. When it's done, you'll be able to see the closest match from the knowledge base data file to the query.
-```
-python lab4.py
-```
-![running lab4 file](./images/rag21.png?raw=true "running lab4 file")
-
-<br><br>
-
-5. Now, let's update the code to pass the retrieved answer to an LLM to expand on. We'll be using the llama3 model that we setup with Ollama previously. For simplicity, the changes are already in a file in [**extra/lab4-changes.txt**](./extra/lab4-changes.txt) To see and merge the differences, we'll use the codespace's built-in diff/merge functionality. Run the command below.
-
-```
-code -d /workspaces/rag/extra/lab4-changes.txt /workspaces/rag/code/lab4.py
-```
-
-<br><br>
-
-6. Once you have this screen up, take a look at the added functionality in the *lab4-changes.txt* file. Here we are passing the answer collected from the knowledge base onto the LLM and asking it to expand on it. To merge the changes, you can click on the arrows between the two files (#1 and #2 in the screenshot) and then close the diff window via the X in the upper corner (#3 in the screenshot).
-
-![lab 4 diff](./images/rag22.png?raw=true "lab 4 diff")
-
-<br><br>
-
-7. Now, you can go ahead and run the updated file again to see what the LLM generates using the added context. Note: This will take several minutes to run.  (If you happen to get an error about not being able to establish a connection, your ollama server may not be running any longer.  If that's the case, you can restart it via the command *"ollama serve &"* and then rerun the python command again.)
-
-```
-python lab4.py
-```
-
-<br><br>
-
-8. After the run is complete, you should see additional data from the LLM related to the additional context with an interesting result!
-
-![lab output 4](./images/rag23.png?raw=true "lab output 4")
-
-<p align="center">
-**[END OF LAB]**
-</p>
-</br></br>
-
-**Lab 5 - Simplifying RAG with Frameworks and LLMs**
-
-**Purpose: In this lab, we'll see how to simplify Graph RAG by leveraging frameworks and using LLMs to help generate queries.**
+**Purpose: In this lab, we'll see how to simply implement Graph RAG by leveraging frameworks and using LLMs to help generate queries.**
 
 1. In our last lab, we hardcoded Cypher queries and worked more directly with the Graph database. Let's see how we can simplify this.
 
@@ -515,7 +334,7 @@ Which movies are comedies?
 </p>
 </br></br>
 
-**Lab 6 - Hybrid RAG: Semantic Search + Knowledge Graph**
+**Lab 4 - Hybrid RAG: Semantic Search + Knowledge Graph**
 
 **Purpose: In this lab, we'll build a hybrid RAG system that combines semantic search (ChromaDB) with knowledge graph traversal (Neo4j) to get both precision and context in our answers.**
 
@@ -665,7 +484,7 @@ After that, refresh the page and try again. You may still have to click through 
 </p>
 </br></br>
 
-**Lab 7 - RAG Evaluation and Quality Metrics**
+**Lab 5 - RAG Evaluation and Quality Metrics**
 
 **Purpose: In this lab, we'll learn how to evaluate RAG system quality - a critical concern for enterprise deployments where accuracy, reliability, and answer traceability are paramount.**
 
@@ -765,7 +584,7 @@ Notice how the last question (about the CEO) should show lower groundedness if t
 </p>
 </br></br>
 
-**Lab 8 - Query Transformation and Re-ranking**
+**Lab 6 - Query Transformation and Re-ranking**
 
 **Purpose: In this lab, we'll implement advanced retrieval techniques that dramatically improve RAG quality - query transformation (expansion, multi-query, HyDE) and two-stage retrieval with re-ranking.**
 
@@ -872,7 +691,7 @@ Notice how re-ranking retrieves 6 candidates (2x the final count) and then score
 </p>
 </br></br>
 
-**Lab 9 - Corrective RAG (CRAG)**
+**Lab 7 - Corrective RAG (CRAG)**
 
 **Purpose: In this lab, we'll implement Corrective RAG (CRAG), an advanced technique where the system evaluates its own retrieval quality and takes corrective action when results are insufficient - including falling back to web search.**
 

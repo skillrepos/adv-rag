@@ -1,4 +1,4 @@
-{{
+{
    // "build": { "dockerfile": "Dockerfile" },
     "image": "mcr.microsoft.com/devcontainers/base:bookworm",
     "hostRequirements": {
@@ -67,5 +67,5 @@
         }
     },
     "postCreateCommand": "bash -i scripts/pysetup.sh py_env && bash -i scripts/startup_ollama.sh",
-    "postAttachCommand": "ollama serve &"
+    "postAttachCommand": "nohup bash -c 'ollama serve &'"
 }

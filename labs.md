@@ -91,7 +91,7 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 
 <br><br>
 
-9. Keep in mind that this is not trying to intelligently answer your prompts at this point. This is a simple semantic search to find related chunks. In lab 3, we'll add in the LLM to give us better responses. 
+9. Keep in mind that this is not trying to intelligently answer your prompts at this point. This is a simple semantic search to find related chunks. In lab 2, we'll add in the LLM to give us better responses. 
 
 <br>
 <p align="center">
@@ -104,15 +104,7 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 
 **Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that uses content from our vector db and an LLM to generate intelligent, grounded answers.**
 
-1. You should still be in the *code* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 2 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, we need to bring down a smaller model to use with these labs. Use the Ollama command below:
-
-```
-ollama pull llama3.2:1b
-```
-
-<br><br>
-
-2. Now let's examine our complete RAG implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
+1. You should still be in the *code* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 2 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, let's examine our complete RAG implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
 
 ```
 code -d ../extra/rag_complete.txt rag_code.py
@@ -122,7 +114,7 @@ code -d ../extra/rag_complete.txt rag_code.py
 
 <br><br>
 
-3. Once you have the diff view open, take a moment to look at the structure in the complete version on the left. Notice the three main methods: `retrieve()` for finding chunks, `build_prompt()` for augmenting with context, and `generate()` for calling the LLM. These are the three steps of RAG.
+2. Once you have the diff view open, take a moment to look at the structure in the complete version on the left. Notice the three main methods: `retrieve()` for finding chunks, `build_prompt()` for augmenting with context, and `generate()` for calling the LLM. These are the three steps of RAG.
 
 - Lines 95-157: `retrieve()` - semantic search in ChromaDB
 - Lines 159-209: `build_prompt()` - combining context with the question
@@ -130,7 +122,7 @@ code -d ../extra/rag_complete.txt rag_code.py
 
 <br><br>
 
-4. Now, as you've done before, merge the code segments from the complete file (left side) into the skeleton file (right side) by clicking the arrow pointing right in the middle bar for each difference. Start with the comments section at the top, then work your way down through the class methods.
+3. Now, merge the code segments from the complete file (left side) into the skeleton file (right side) by hovering over the middle bar and clicking the arrow pointing right in the middle bar for each difference. Start with the comments section at the top, then work your way down through the class methods.
 
 ![Merge](./images/aia-1-43.png?raw=true "Merge")
 
@@ -154,7 +146,7 @@ The system will connect to the vector database we created in Lab 2 and check if 
 
 7. You should see knowledge base statistics showing how many chunks are indexed, and a check that Ollama is running with the llama3.2:1b model. If you see any errors about Ollama not running, check that with "ollama list".  If Ollama doesn't respond, try "ollama serve &".
 
-![Running](./images/ragv2-13.png?raw=true "Running")
+![Running](./images/arag8.png?raw=true "Running")
 
 <br><br>
 
@@ -173,7 +165,7 @@ Watch what happens - the system will show you the three RAG steps in the logs:
 
 9. After a few seconds, you'll see an ANSWER section with the LLM-generated response, followed by a SOURCES section showing which PDFs and pages were used. Notice how the answer is much more complete and natural than just showing search results.
 
-![Answer](./images/ragv2-11.png?raw=true "Answer")
+![Answer](./images/arag9.png?raw=true "Answer")
 
 <br><br>
 
@@ -227,22 +219,26 @@ Notice how the system should say it doesn't have that information (rather than m
 
 1. To do this lab, we need a graph database. We'll use a docker image for this that is already populated with data for us. Change to the neo4j directory and run the script command below. This will take a few minutes to build and start. Be sure to add the "&" to run this in the background.
 
-(When it is ready, you may see a "*INFO  [neo4j/########] successfully initialized:*" message or one that says "naming to docker.io/library/neo4j:custom".) Just hit *Enter* and you can change back to the *workspaces/rag* subdirectory. 
+(When it is ready, you will see messages like the ones shown below. Just hit *Enter* and you can change back to the *workspaces/adv-rag* subdirectory. 
 
 ```
-cd /workspaces/rag/neo4j
+cd /workspaces/adv-rag/neo4j
 ./neo4j-setup.sh 2 &
 cd ..
-``` 
+```
+
+![neo4j ready](./images/arag10.png?raw=true "Answer")
 
 <br><br>
 
-2. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/rag) when you run these commands.**
+2. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/adv-rag) when you run these commands.**
 
 ```
 npm i -g http-server
 http-server
 ```
+
+**NOTE: If it appears to open another instance of the codespace, just close that and go back, stop the *http-server* command and then retry it.**
 
 <br><br>
 
@@ -255,10 +251,10 @@ http-server
 
 <br><br>
 
-4. When done, you can stop the *http-server* process with *Ctrl-C*. Now, let's go back and create a file to use the langchain pieces and the llm to query our graph database. Change back to the *genai* directory and create a new file named lab5.py.
+4. When done, you can stop the *http-server* process with *Ctrl-C*. Now, let's go back and create a file to use the langchain pieces and the llm to query our graph database. Change back to the *genai* directory and create a new file named lab3.py.
 ```
 cd code
-code lab5.py
+code lab3.py
 ```
 
 <br><br>
@@ -313,15 +309,15 @@ while True:
 
 9. Now, run the code.
 ```
-python lab5.py
+python lab3.py
 ```
 
 <br><br>
 
 10. You can prompt it with queries related to the info in the graph database, like:
 ```
-Who starred in Star Trek : Generations?
 Which movies are comedies?
+What is the imdb rating for Jumanji?
 ```
 
 <p align="center">

@@ -1,7 +1,7 @@
 # Advanced RAG
 ## Advanced Techniques for Leveraging your Data with GenAI
 ## Session labs 
-## Revision 1.0 - 01/25/26
+## Revision 1.5 - 01/25/26
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -217,7 +217,17 @@ Notice how the system should say it doesn't have that information (rather than m
 
 **Purpose: In this lab, we'll see how to simply implement Graph RAG by leveraging frameworks and using LLMs to help generate queries.**
 
-1. To do this lab, we need a graph database. We'll use a docker image for this that is already populated with data for us. Change to the neo4j directory and run the script command below. This will take a few minutes to build and start. Be sure to add the "&" to run this in the background.
+1. To do this lab, we'll use a larger model. Use Ollama to pull the *llama3:8b* model down with the following command.
+
+```
+ollama pull llama3:8b
+```
+
+![Pulling model](./images/arag11.png?raw=true "Pulling model")
+
+<br><br>
+  
+2. We also need a graph database. We'll use a docker image for this that is already populated with data for us. Change to the neo4j directory and run the script command below. This will take a few minutes to build and start. Be sure to add the "&" to run this in the background.
 
 (When it is ready, you will see messages like the ones shown below. Just hit *Enter* and you can change back to the *workspaces/adv-rag* subdirectory. 
 
@@ -227,11 +237,11 @@ cd /workspaces/adv-rag/neo4j
 cd ..
 ```
 
-![neo4j ready](./images/arag10.png?raw=true "Answer")
+![neo4j ready](./images/arag10.png?raw=true "neo4j ready")
 
 <br><br>
 
-2. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/adv-rag) when you run these commands.**
+3. This graph database is prepopulated with a large set of nodes and relationships related to movies. This includes actors and directors associated with movies, as well as the movie's genre, imdb rating, etc. You can take a look at the graph nodes by running the following commands in the terminal. **You should be in the "root" directory (/workspaces/adv-rag) when you run these commands.**
 
 ```
 npm i -g http-server
@@ -242,7 +252,7 @@ http-server
 
 <br><br>
 
-3. After a moment, you should see a pop-up dialog that you can click on to open a browser to see some of the nodes in the graph. It will take a minute or two to load and then you can zoom in by using your mouse (roll wheel) to see more details.
+4. After a moment, you should see a pop-up dialog that you can click on to open a browser to see some of the nodes in the graph. It will take a minute or two to load and then you can zoom in by using your mouse (roll wheel) to see more details.
 
 ![running local web server](./images/rag24.png?raw=true "running local web server")
 ![loading nodes](./images/rag25.png?raw=true "loading nodes")
@@ -251,7 +261,8 @@ http-server
 
 <br><br>
 
-4. When done, you can stop the *http-server* process with *Ctrl-C*. Now, let's go back and create a file to use the langchain pieces and the llm to query our graph database. Change back to the *genai* directory and create a new file named lab3.py.
+5. When done, you can stop the *http-server* process with *Ctrl-C*. Now, let's go back and create a file to use the langchain pieces and the llm to query our graph database. Change back to the *genai* directory and create a new file named lab3.py.
+   
 ```
 cd code
 code lab3.py
@@ -259,7 +270,7 @@ code lab3.py
 
 <br><br>
 
-5. First, add the imports from *langchain* that we need. Put the following lines in the file you just created.
+6. First, add the imports from *langchain* that we need. Put the following lines in the file you just created.
 ```
 from langchain_neo4j import Neo4jGraph, GraphCypherQAChain
 from langchain_ollama import OllamaLLM
@@ -267,7 +278,7 @@ from langchain_ollama import OllamaLLM
 
 <br><br>
 
-6. Now, let's add the connection to the graph database. Add the following to the file.
+7. Next, let's add the connection to the graph database. Add the following to the file.
 ```
 graph = Neo4jGraph(
     url="bolt://localhost:7687",
@@ -280,11 +291,12 @@ graph = Neo4jGraph(
 <br><br>
 
 
-7. Next, let's create the chain instance that will allow us to leverage the LLM to help create the Cypher query and help frame the answer so it makes sense. We'll use Ollama and our llama3 model for both the LLM to create the Cypher queries and the LLM to help frame the answers.
+8. Now, let's create the chain instance that will allow us to leverage the LLM to help create the Cypher query and help frame the answer so it makes sense. We'll use Ollama and our llama3 model for both the LLM to create the Cypher queries and the LLM to help frame the answers.
+
 ```
 chain = GraphCypherQAChain.from_llm(
-    cypher_llm=OllamaLLM(model="llama3.2:3b", temperature=0),
-    qa_llm=OllamaLLM(model="llama3.2:3b", temperature=0),
+    cypher_llm=OllamaLLM(model="llama3:8b", temperature=0),
+    qa_llm=OllamaLLM(model="llama3:8b", temperature=0),
     graph=graph,
     verbose=True,
     allow_dangerous_requests=True,
@@ -293,7 +305,8 @@ chain = GraphCypherQAChain.from_llm(
 
 <br><br>
 
-8. Finally, let's add the code loop to take in a query and invoke the chain. After you've added this code, save the file.
+9. Finally, let's add the code loop to take in a query and invoke the chain. After you've added this code, save the file.
+
 ```
 while True:
     query = input("\nQuery: ")
@@ -307,18 +320,31 @@ while True:
 
 <br><br>
 
-9. Now, run the code.
+10. Now, run the code.
 ```
 python lab3.py
 ```
 
 <br><br>
 
-10. You can prompt it with queries related to the info in the graph database, like:
+11. You can prompt it with queries related to the info in the graph database, like below. (Note: Because of the larger model, response times may be longer. Also, actual output length may be limited by the framework.)
 ```
 Which movies are comedies?
+Who starred in Star Trek: Generations?
 What is the imdb rating for Jumanji?
 ```
+
+![querying the graph](./images/arag12.png?raw=true "querying the graph")
+
+<br><br>
+
+12. To provide more resources for the other labs, remove the *llama3:8b* model.
+
+```
+ollama rm llama3:8b
+```
+
+<br><br>
 
 <p align="center">
 **[END OF LAB]**

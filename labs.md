@@ -228,7 +228,7 @@ cd /workspaces/adv-rag/neo4j
 cd ..
 ```
 
-![neo4j ready](./images/arag10.png?raw=true "neo4j ready")
+![neo4j ready](./images/arag13.png?raw=true "neo4j ready")
 
 <br><br>
 
@@ -323,7 +323,7 @@ python lab3.py
 Which movies are comedies?
 ```
 
-![querying the graph](./images/arag12.png?raw=true "querying the graph")
+![querying the graph](./images/arag14.png?raw=true "querying the graph")
 
 <br><br>
 

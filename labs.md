@@ -703,6 +703,8 @@ code -d ../extra/lab7_crag_complete.txt lab7.py
    - **Knowledge Refinement**: Extract only relevant information
    - **Answer Generation**: Generate with confidence-appropriate prompts
 
+![response](./images/arag33.png?raw=true "response")
+
 <br><br>
 
 3. Merge all the code segments from the complete file into the skeleton file. Pay special attention to the evaluation prompts and decision thresholds.
@@ -721,6 +723,8 @@ python lab7.py
    - **GREEN (CORRECT)**: High relevance - use retrieved documents
    - **YELLOW (AMBIGUOUS)**: Partial relevance - refine + supplement with web
    - **RED (INCORRECT)**: Low relevance - fall back to web search
+
+![run](./images/arag34.png?raw=true "run")
 
 <br><br>
 
@@ -741,6 +745,8 @@ Watch the 6-step CRAG pipeline execute:
 
 7. Notice the visual relevance bars showing each document's score. Documents above 0.7 are considered highly relevant (green), 0.4-0.7 are ambiguous (yellow), and below 0.4 are irrelevant (red).
 
+![known](./images/arag35.png?raw=true "known")
+
 <br><br>
 
 8. Now try a question that's likely NOT in the knowledge base:
@@ -751,33 +757,31 @@ What is the current stock price of OmniTech?
 
 Watch the system detect low relevance and trigger web search (simulated). This is CRAG in action - it "knows when it doesn't know."
 
-<br><br>
-
-9. Try an ambiguous query that might have partial coverage:
-
-```
-What are the best practices for device maintenance?
-```
-
-Notice how CRAG might mark this as AMBIGUOUS, keeping some retrieved documents while supplementing with web search.
+![known](./images/arag36.png?raw=true "known")
 
 <br><br>
 
-10. Now select option **2** to compare CRAG vs Standard RAG on the same question. Enter:
+9. Now select option **2** to compare CRAG vs Standard RAG on a question. Enter:
 
 ```
 How do I contact support for warranty issues?
 ```
 
+![known](./images/arag37.png?raw=true "known")
+
 Compare the answers - CRAG should provide a more complete response by intelligently filtering or supplementing the context.
+
+![known](./images/arag38.png?raw=true "known")
 
 <br><br>
 
-11. Try the comparison with a question outside the knowledge base:
+10. Try the comparison with a question outside the knowledge base:
 
 ```
-What are the latest AI developments in 2024?
+What are the latest AI developments in 2026?
 ```
+
+![unknown](./images/arag39.png?raw=true "unknown")
 
 Notice how Standard RAG might hallucinate or give a vague answer, while CRAG recognizes the retrieval failure and seeks external information.
 

@@ -645,35 +645,31 @@ This is intentionally vague - notice how the different methods handle vocabulary
 
 <br><br>
 
-9. Try another query with specific terminology that might not match exactly:
-
-```
-broken device warranty
-```
-
-<br><br>
-
-10. Now select option **2** to try individual techniques. Choose **3 (HyDE)** and enter:
+9. Now select option **2** to try individual techniques. Choose **3 (HyDE)** and enter:
 
 ```
 how long to return
 ```
 
+![response](./images/arag32.png?raw=true "response")
+
 Notice how HyDE generates a hypothetical answer like "Customers may return products within 30 days..." and uses THAT to search - bridging the gap between question-style and answer-style text.
 
 <br><br>
 
-11. Try the **Re-ranking** technique (option 4) with:
+10. Try the **Re-ranking** technique (option 4) with:
 
 ```
 shipping options and costs
 ```
 
+![response](./images/arag31.png?raw=true "response")
+
 Notice how re-ranking retrieves 6 candidates (2x the final count) and then scores each one's relevance to return only the top 3 most relevant.
 
 <br><br>
 
-12. Discussion Points:
+11. Discussion Points:
    - **Query-document mismatch**: Users ask questions, but documents contain answers
    - **HyDE insight**: Searching with answer-like text finds answer-containing documents
    - **Re-ranking trade-off**: More compute for higher precision

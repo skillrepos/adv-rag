@@ -1,7 +1,7 @@
 # Advanced RAG
 ## Advanced Techniques for Leveraging your Data with GenAI
 ## Session labs 
-## Revision 1.5 - 01/25/26
+## Revision 1.7 - 01/25/26
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -500,10 +500,10 @@ The system will connect to the vector database we created earlier and present yo
 6. You should see a menu with options to evaluate a single question or run a full test suite. Select option **1** to evaluate a single question. Enter a question like:
 
 ```
-What is the return policy for products?
+How do I reset my password?
 ```
 
-![run](./images/arag23.png?raw=true "run")
+![question](./images/arag25.png?raw=true "question")
 
 <br><br>
 
@@ -523,19 +523,27 @@ What is the return policy for products?
 
 Notice the **OVERALL SCORE** which weights the metrics based on enterprise priorities (groundedness is most important at 40%).
 
+![run](./images/arag24.png?raw=true "run")
+
 <br><br>
 
 9. Try a few more questions to see how scores vary:
 
 ```
-How do I reset my password?
+What is the return policy for products?
 What are the shipping costs?
 Who is the CEO of OmniTech?
 ```
 
 Notice how the last question (about the CEO) should show lower groundedness if that information isn't in the documents.
 
+![run](./images/arag26.png?raw=true "run")
+
 <br><br>
+
+**Steps 10-12 are optional and may take longer than lab time allows.**
+
+<br>
 
 10. Now select option **2** to run the full test suite. This runs evaluation on a predefined set of questions with expected keywords - simulating automated regression testing.
 

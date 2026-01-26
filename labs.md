@@ -464,8 +464,10 @@ Who handles defective items?
 1. You should still be in the *code* subdirectory. We're going to build a RAG evaluation system that measures retrieval quality, answer accuracy, and detects potential hallucinations. First, let's examine our evaluation implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
 
 ```
-code -d ../extra/lab7_eval_complete.txt lab7.py
+code -d ../extra/lab5_eval_complete.txt lab5.py
 ```
+
+![diff](./images/arag22.png?raw=true "diff")
 
 <br><br>
 
@@ -488,7 +490,7 @@ code -d ../extra/lab7_eval_complete.txt lab7.py
 5. Now let's run our RAG evaluation system:
 
 ```
-python lab7.py
+python lab5.py
 ```
 
 The system will connect to the vector database we created earlier and present you with options.
@@ -500,6 +502,8 @@ The system will connect to the vector database we created earlier and present yo
 ```
 What is the return policy for products?
 ```
+
+![run](./images/arag23.png?raw=true "run")
 
 <br><br>
 
@@ -564,7 +568,7 @@ Notice how the last question (about the CEO) should show lower groundedness if t
 1. You should still be in the *code* subdirectory. We're going to build an advanced RAG system that transforms user queries for better retrieval and re-ranks results for higher precision. Use the diff command to examine the implementation:
 
 ```
-code -d ../extra/lab8_rerank_complete.txt lab8.py
+code -d ../extra/lab6_rerank_complete.txt lab6.py
 ```
 
 <br><br>
@@ -584,7 +588,7 @@ code -d ../extra/lab8_rerank_complete.txt lab8.py
 4. After merging, close the diff view. Now let's run the advanced RAG demo:
 
 ```
-python lab8.py
+python lab6.py
 ```
 
 <br><br>
@@ -671,7 +675,7 @@ Notice how re-ranking retrieves 6 candidates (2x the final count) and then score
 1. You should still be in the *code* subdirectory. We're going to build a self-correcting RAG system that "knows when it doesn't know" and takes corrective action. Use the diff command to examine the implementation:
 
 ```
-code -d ../extra/lab9_crag_complete.txt lab9.py
+code -d ../extra/lab7_crag_complete.txt lab7.py
 ```
 
 <br><br>
@@ -692,7 +696,7 @@ code -d ../extra/lab9_crag_complete.txt lab9.py
 4. After merging, close the diff view. Now let's run the CRAG demo:
 
 ```
-python lab9.py
+python lab7.py
 ```
 
 <br><br>

@@ -1,7 +1,7 @@
 # Advanced RAG
 ## Advanced Techniques for Leveraging your Data with GenAI
 ## Session labs 
-## Revision 1.10 - 01/26/26
+## Revision 1.11 - 01/26/26
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -104,7 +104,7 @@ python ../tools/index_pdfs.py --pdf-dir ../data/knowledge_base_pdfs
 
 **Purpose: In this lab, we'll create a complete RAG (Retrieval-Augmented Generation) system that uses content from our vector db and an LLM to generate intelligent, grounded answers.**
 
-1. You should still be in the *code* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 2 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, let's examine our complete RAG implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
+1. You should still be in the *code* subdirectory. We're going to build a TRUE RAG system that combines vector search with LLM generation. This is different from Lab 1 - instead of just finding similar chunks, we'll use those chunks as context for an LLM to generate complete answers. First, let's examine our complete RAG implementation. We have a completed version and a skeleton version. Use the diff command to see the differences:
 
 ```
 code -d ../extra/rag_complete.txt rag_code.py

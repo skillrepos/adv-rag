@@ -554,6 +554,9 @@ Notice how the last question (about the CEO) should show lower groundedness if t
    - Set quality thresholds for production readiness
    - Compare different RAG configurations
 
+
+![system test](./images/arag27.png?raw=true "system test")
+
 <br><br>
 
 12. Discussion Points:
@@ -579,6 +582,8 @@ Notice how the last question (about the CEO) should show lower groundedness if t
 code -d ../extra/lab6_rerank_complete.txt lab6.py
 ```
 
+![diff and merge](./images/arag28.png?raw=true "diff and merge")
+
 <br><br>
 
 2. Once you have the diff view open, look at the key techniques in the complete version:
@@ -598,6 +603,8 @@ code -d ../extra/lab6_rerank_complete.txt lab6.py
 ```
 python lab6.py
 ```
+
+![run](./images/arag29.png?raw=true "run")
 
 <br><br>
 
@@ -633,6 +640,8 @@ This is intentionally vague - notice how the different methods handle vocabulary
    - Expanded queries find more related content
    - HyDE often finds the most relevant passages
    - Re-ranking improves precision (relevant docs ranked higher)
+
+![response](./images/arag30.png?raw=true "response")
 
 <br><br>
 

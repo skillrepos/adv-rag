@@ -346,38 +346,36 @@ You can view it [here](./neo4j/data3/omnitech_policies.csv) if interested.
 
 <br><br>
   
-2. First, let's create the Neo4j graph database with the OmniTech knowledge graph. Run the commands (similar to lab 5) below.
+2. First, let's create the Neo4j graph database with the OmniTech knowledge graph. Run the commands (similar to lab 3) below.
 
 ```
-cd /workspaces/rag/neo4j
+cd /workspaces/adv-rag/neo4j
 ./neo4j-setup.sh 3 &
 ```
 
 Wait for the message indicating Neo4j is ready (about 30-60 seconds). The script will:
 - Build a Docker image with the OmniTech schema
 - Start Neo4j container on ports 7474 (web) and 7687 (Bolt)
-- Auto-initialize the knowledge graph via APOC
+- Load the schema
 
 When done, you will see a message ending with "Then run:    MATCH (n) RETURN count(n);". This is informational and you can just hit *Enter/Return* to get back to the prompt.
 
-![building graph db](./images/ragv2-17.png?raw=true "building graph db")
+![building graph db](./images/arag15.png?raw=true "building graph db")
 
 <br><br>
 
-3. Change back to the code directory. Then we'll build out the hybrid RAG system as lab6.py with the diff and merge process that we've used before. The second command below will start up the editor session.
+3. Change back to the code directory. Then we'll build out the hybrid RAG system as lab4.py with the diff and merge process that we've used before. The second command below will start up the editor session.
    
 ```
-cd /workspaces/rag/code
+cd /workspaces/adv-rag/code
 code -d ../extra/lab4-changes.txt lab4.py
 ```
-
-![building hybrid code](./images/ragv2-18.png?raw=true "building hybrid code")
 
 <br><br>
 
 4. What you'll see here is that most of the merges are comment sections explaining what the code does (plus some for the prompt, etc.). You can review and merge them as we've done before. After looking over the change, hover over the middle section and click the arrow to merge. Continue with this process until there are no more differences. Then click on the "X" in the tab at the top to close and save your changes.
 
-![merge and save](./images/ragv2-19.png?raw=true "merge and save")
+![merge and save](./images/arag16.png?raw=true "merge and save")
 
 <br><br>
  
@@ -385,10 +383,10 @@ code -d ../extra/lab4-changes.txt lab4.py
 5. Now let's run the hybrid RAG demo with the command below (in the *code* directory). This will then be waiting for you to type in a query.
 
 ```
-python lab6.py
+python lab4.py
 ```
 
-![running](./images/ragv2-20.png?raw=true "running")
+![running](./images/arag17.png?raw=true "running")
 
 <br><br>
 
@@ -398,7 +396,9 @@ python lab6.py
 What is the return window for Pro-Series equipment and who do I contact?
 ```
 
-![running query](./images/ragv2-22.png?raw=true "running query")
+<br><br>
+
+![running query](./images/arag18.png?raw=true "running query")
 
 7. Watch the output - the demo asks the same question using three different methods:
 
@@ -421,7 +421,7 @@ You can compare the results:
 | GRAPH | Pro_Series → Pro_Series_Return → 14_Days | Precise facts via Cypher traversal |
 | HYBRID | Graph facts + Document context | Combines both worlds |
 
-![multiple answers](./images/ragv2-21.png?raw=true "multiple answers")
+![multiple answers](./images/arag19.png?raw=true "multiple answers")
 
 <br><br>
 
@@ -431,23 +431,14 @@ You can compare the results:
 Who handles defective items?
 ```
 
-![2nd query](./images/ragv2-24.png?raw=true "2nd query")
-
 <br><br>
-
 
 9. Notice again the variations in the responses. Typically, because of the direct mapping, the *HYBRID* and *GRAPH* responses will have the best information.
 
-![2nd query](./images/ragv2-23.png?raw=true "2nd query")
+![2nd query](./images/arag21.png?raw=true "2nd query")
 
 <br><br>
     
-Notice the `HybridRAG` class connects to both databases:
-- **ChromaDB** for semantic search (lines 46-53)
-- **Neo4j** for graph search (lines 55-67)
-
-<br><br>
-
 10. Discussion Points:
 - **Semantic search** (ChromaDB) understands MEANING - handles "money back" → "refund"
 - **Graph search** (Neo4j) understands STRUCTURE - traverses entity relationships
@@ -457,22 +448,6 @@ Notice the `HybridRAG` class connects to both databases:
 
 <br><br>
 
-11. [OPTIONAL] You can also visualize the knowledge graph. Start a local web server:
-
-```
-cd /workspaces/rag/neo4j/data3/public
-npx http-server
-```
-
-Click the pop-up to open the browser and see the graph visualization. You can move around using the mouse and also zoom in and out. 
-
-**NOTE**: If you can't open the page, you may need to go back to the codespace, go to the *PORTS* tab (next to *TERMINAL*), right-click, and set the *Visibility* field to *Public*. See screenshot below.
-
-![make port public](./images/ragv2-26.png?raw=true "make port public")
-
-After that, refresh the page and try again. You may still have to click through another page to allow access.
-
-<br><br>
 
 **Key Takeaway:**
 > Semantic search understands MEANING. Graph search understands STRUCTURE. Together they provide comprehensive, accurate answers.

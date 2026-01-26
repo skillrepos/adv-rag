@@ -432,6 +432,27 @@ Where score means:
         Returns:
             Float between 0.0 (incomplete) and 1.0 (fully complete)
         """
+        # Check for refusal/non-answer patterns - these should score low on completeness
+        # even though they may be grounded (truthful about not knowing)
+        refusal_patterns = [
+            "don't have enough information",
+            "do not have enough information",
+            "cannot answer",
+            "can't answer",
+            "not able to answer",
+            "no information available",
+            "not in the context",
+            "not mentioned in",
+            "does not contain",
+            "doesn't contain",
+            "unable to find",
+            "could not find",
+            "no relevant information"
+        ]
+        answer_lower = answer.lower()
+        if any(pattern in answer_lower for pattern in refusal_patterns):
+            return 0.2  # Low completeness for refusals (1/5 normalized)
+
         eval_prompt = f"""Evaluate how completely this answer addresses the question.
 
 QUESTION: {question}

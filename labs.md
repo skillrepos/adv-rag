@@ -1,7 +1,7 @@
 # Advanced RAG
 ## Advanced Techniques for Leveraging your Data with GenAI
 ## Session labs 
-## Revision 1.7 - 01/25/26
+## Revision 1.10 - 01/26/26
 
 **Follow the startup instructions in the README.md file IF NOT ALREADY DONE!**
 
@@ -327,8 +327,9 @@ Which movies are comedies?
 
 <br><br>
 
+<br>
 <p align="center">
-**[END OF LAB]**
+<b>[END OF LAB]</b>
 </p>
 </br></br>
 
@@ -452,8 +453,9 @@ Who handles defective items?
 **Key Takeaway:**
 > Semantic search understands MEANING. Graph search understands STRUCTURE. Together they provide comprehensive, accurate answers.
 
+<br>
 <p align="center">
-**[END OF LAB]**
+<b>[END OF LAB]</b>
 </p>
 </br></br>
 
@@ -567,8 +569,9 @@ Notice how the last question (about the CEO) should show lower groundedness if t
 
 <br><br>
 
+<br>
 <p align="center">
-**[END OF LAB]**
+<b>[END OF LAB]</b>
 </p>
 </br></br>
 
@@ -788,8 +791,9 @@ Notice how Standard RAG might hallucinate or give a vague answer, while CRAG rec
    - **Production patterns**: Real systems use actual web search APIs (Google, Bing, Tavily)
    - **Cost trade-off**: More LLM calls for evaluation, but better answer quality
 
+<br>
 <p align="center">
-**[END OF LAB]**
+<b>[END OF LAB]</b>
 </p>
 </br></br>
 

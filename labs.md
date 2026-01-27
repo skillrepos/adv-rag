@@ -238,14 +238,26 @@ cd ..
 npm i -g http-server
 http-server
 ```
-
-**NOTE: If it appears to open another instance of the codespace, just close that and go back, stop the *http-server* command and then retry it.**
-
 <br><br>
 
-3. After a moment, you should see a pop-up dialog that you can click on to open a browser to see some of the nodes in the graph. It will take a minute or two to load and then you can zoom in by using your mouse (roll wheel) to see more details.
+3. After a moment, you should see a pop-up dialog. Click on the "Make public" button to make the port public. 
 
 ![running local web server](./images/rag24.png?raw=true "running local web server")
+
+<br>
+
+Then go to the *PORTS* tab and, in the second column under *Forwarded Address*, find the row for port 8080. Click on the *globe* icon.
+
+<br>
+
+![running local web server](./images/arag40.png?raw=true "running local web server")
+
+<br>
+
+You may be asked to click a button to continue to see the codespace. If so, click to accept. Then, it should take you to the graph. It will take a minute or two to load and then you can zoom in by using your mouse (roll wheel) to see more details.
+
+<br>
+
 ![loading nodes](./images/rag25.png?raw=true "loading nodes")
 ![graph nodes](./images/rag26.png?raw=true "graph nodes")
 

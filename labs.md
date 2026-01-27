@@ -541,7 +541,7 @@ Notice the **OVERALL SCORE** which weights the metrics based on enterprise prior
 
 <br><br>
 
-9. Try a few more questions to see how scores vary:
+9. Here's a few more questions to see how scores vary: (Due to time constraints, it's suggested to pick one.)
 
 ```
 What is the return policy for products?

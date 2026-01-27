@@ -32,8 +32,21 @@ The codespace is ready to use when you see a prompt like the one shown below in 
 
 ![Ready to use](./images/arag2.png?raw=true "Ready to use")
 
+<br><br>
 
-**4. Open up the *labs.md* file so you can follow along with the labs.**
+**4. In the *TERMINAL* of the codespace, run the warmup script to make LLM operations faster in the labs.**
+
+```
+python scripts/warmup.py
+```
+
+![Run warmup](./images/arag41.png?raw=true "Run warmup")
+
+(Ignore the Neo4j warning.)
+
+<br><br>
+
+**5. Open up the *labs.md* file so you can follow along with the labs.**
 You can either open it in a separate browser instance or open it in the codespace. If you open it in the codespace, make sure to *Open Preview* so you can see it in Markdown form as intended.
 ![Opening labs](./images/ragv2-27.png?raw=true "Opening labs")
 

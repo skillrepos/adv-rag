@@ -129,6 +129,9 @@ class CRAGResult:
     relevance_scores: List[float]
     decision: RetrievalDecision
 
+    # Reasoning (added for debug)
+    relevance_reasonings: List[str] = None
+
     # Corrective actions taken
     web_search_used: bool = False
     web_results: List[Dict] = None
@@ -205,7 +208,7 @@ class CorrectiveRAG:
     # Grade each document's relevance to the query
     # ══════════════════════════════════════════════════════════════════════════
 
-    def evaluate_relevance(self, query: str, document: str) -> float:
+    def evaluate_relevance(self, query: str, document: str) -> Tuple[float, str]:
         """
         Evaluate how relevant a single document is to the query.
 
@@ -214,21 +217,21 @@ class CorrectiveRAG:
         answer the question.
 
         Returns:
-            Float between 0.0 (irrelevant) and 1.0 (highly relevant)
+            Tuple of (score 0-1, reasoning string)
         """
         eval_prompt = f"""Evaluate the relevance of the following document to the question.
 
 QUESTION: {query}
 DOCUMENT snippet: {document[:1000]}
 
-Rate the relevance from 1 to 5:
-- 5: Highly relevant, contains the answer.
-- 4: Relevant, contains part of the answer or close context.
-- 3: Partially relevant, related topic but no direct answer.
-- 2: Tangential, mentions the company/domain but wrong topic.
-- 1: Irrelevant, completely unrelated.
+GRADING STEPS:
+1. Identify key info needed to answer.
+2. Check if snippet contains that info.
+3. Assign a score from 1 to 10 (10=perfect, 1=irrelevant).
 
-Respond with ONLY the score in double square brackets, like this: [[X]]"""
+Output format:
+REASONING: <brief 1-sentence explanation>
+SCORE: [[X]]"""
 
         try:
             response = requests.post(
@@ -244,33 +247,43 @@ Respond with ONLY the score in double square brackets, like this: [[X]]"""
             if response.status_code == 200:
                 result = response.json().get("response", "").strip()
                 
-                # Robust extraction using bracketed format
+                # Extract reasoning
+                reasoning = "No reasoning provided"
+                if "REASONING:" in result:
+                    reasoning_part = result.split("REASONING:")[1].split("SCORE:")[0].strip()
+                    reasoning = reasoning_part
+                
+                # Robust extraction using bracketed format for 1-10
                 import re
-                match = re.search(r'\[\[([1-5])\]\]', result)
+                match = re.search(r'\[\[([0-9]|10)\]\]', result)
                 if match:
-                    return int(match.group(1)) / 5.0
+                    return int(match.group(1)) / 10.0, reasoning
                 
                 # Fallback: look for any digit if the model ignored the brackets
-                matches = re.findall(r'[1-5]', result)
+                matches = re.findall(r'\d+', result)
                 if matches:
-                    return int(matches[0]) / 5.0
+                    score = int(matches[-1]) # Take last found digit (often the score)
+                    if score > 10: score = 10
+                    return score / 10.0, reasoning
                     
-                return 0.2  # Default to low relevance if extraction fails
-            return 0.0
-        except Exception:
-            return 0.0
+                return 0.2, reasoning
+            return 0.0, "Connection error"
+        except Exception as e:
+            return 0.0, f"Error: {str(e)}"
 
-    def evaluate_all_documents(self, query: str, chunks: List[Dict]) -> List[float]:
+    def evaluate_all_documents(self, query: str, chunks: List[Dict]) -> Tuple[List[float], List[str]]:
         """
         Evaluate relevance of all retrieved documents.
 
-        Returns list of relevance scores, one per document.
+        Returns (list of relevance scores, list of reasoning strings).
         """
         scores = []
+        reasonings = []
         for chunk in chunks:
-            score = self.evaluate_relevance(query, chunk['content'])
+            score, reasoning = self.evaluate_relevance(query, chunk['content'])
             scores.append(score)
-        return scores
+            reasonings.append(reasoning)
+        return scores, reasonings
 
     # ══════════════════════════════════════════════════════════════════════════
     # STEP 3: DECISION MAKING
@@ -518,7 +531,7 @@ ANSWER:"""
 
         # Step 2: Evaluate relevance
         print("\n[2/6] Evaluating document relevance...")
-        relevance_scores = self.evaluate_all_documents(question, chunks)
+        relevance_scores, reasonings = self.evaluate_all_documents(question, chunks)
         for i, (chunk, score) in enumerate(zip(chunks, relevance_scores)):
             source = chunk['metadata'].get('source', 'unknown').split('/')[-1]
             print(f"      Doc {i+1}: {source} - Relevance: {score:.2f}")
@@ -570,6 +583,7 @@ ANSWER:"""
             answer=answer,
             initial_chunks=chunks,
             relevance_scores=relevance_scores,
+            relevance_reasonings=reasonings,
             decision=decision,
             web_search_used=web_search_used,
             web_results=web_results if web_results else None,
@@ -716,8 +730,10 @@ def run_demo():
             for i, (chunk, score) in enumerate(zip(result.initial_chunks, result.relevance_scores)):
                 source = chunk['metadata'].get('source', 'unknown').split('/')[-1]
                 bar = "█" * int(score * 10) + "░" * (10 - int(score * 10))
-                color = GREEN if score >= 0.7 else YELLOW if score >= 0.4 else RED
+                color = GREEN if score >= 0.7 else YELLOW if score >= 0.5 else RED
                 print(f"  {i+1}. [{bar}] {color}{score:.2f}{RESET} - {source}")
+                if result.relevance_reasonings:
+                     print(f"     {result.relevance_reasonings[i]}")
 
             # Web search
             if result.web_search_used:
@@ -764,4 +780,3 @@ def run_demo():
 
 if __name__ == "__main__":
     run_demo()
-

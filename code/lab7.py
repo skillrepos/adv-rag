@@ -21,6 +21,7 @@ USAGE:
 # IMPORTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+import os
 import requests
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
@@ -35,12 +36,12 @@ from chromadb.config import Settings, DEFAULT_TENANT, DEFAULT_DATABASE
 CHROMA_PATH = "./chroma_db"
 COLLECTION_NAME = "pdf_documents"
 OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:3b"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
 
 # CRAG thresholds - tune these based on your quality requirements
 RELEVANCE_THRESHOLD_HIGH = 0.7   # Above this = CORRECT (use retrieved docs)
-RELEVANCE_THRESHOLD_LOW = 0.4   # Below this = INCORRECT (need web search)
-                                 # Between = AMBIGUOUS (refine + supplement)
+RELEVANCE_THRESHOLD_LOW = 0.5   # Below this = INCORRECT (use web search only)
+                                 # Between = AMBIGUOUS (refine docs + supplement)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -129,7 +130,7 @@ class CorrectiveRAG:
     # STEP 2: RETRIEVAL EVALUATION (The "C" in CRAG)
     # ══════════════════════════════════════════════════════════════════════════
 
-    def evaluate_relevance(self, query: str, document: str) -> float:
+    def evaluate_relevance(self, query: str, document: str) -> Tuple[float, str]:
         """
         Evaluate how relevant a single document is to the query.
         """
@@ -147,23 +148,44 @@ class CorrectiveRAG:
             )
             if response.status_code == 200:
                 result = response.json().get("response", "").strip()
-                for char in result:
-                    if char.isdigit():
-                        return int(char) / 5.0  # Normalize to 0-1
-                return 0.5
-            return 0.0
-        except Exception:
-            return 0.0
+                
+                # Extract reasoning
+                reasoning = "No reasoning provided"
+                if "REASONING:" in result:
+                    reasoning_part = result.split("REASONING:")[1].split("SCORE:")[0].strip()
+                    reasoning = reasoning_part
+                
+                # Robust extraction using bracketed format for 1-10
+                import re
+                match = re.search(r'\[\[([0-9]|10)\]\]', result)
+                if match:
+                    return int(match.group(1)) / 10.0, reasoning
+                
+                # Fallback: look for any digit if the model ignored the brackets
+                matches = re.findall(r'\d+', result)
+                if matches:
+                    score = int(matches[-1]) # Take last found digit (often the score)
+                    if score > 10: score = 10
+                    return score / 10.0, reasoning
+                    
+                return 0.2, reasoning
+            return 0.0, "Connection error"
+        except Exception as e:
+            return 0.0, f"Error: {str(e)}"
 
-    def evaluate_all_documents(self, query: str, chunks: List[Dict]) -> List[float]:
+    def evaluate_all_documents(self, query: str, chunks: List[Dict]) -> Tuple[List[float], List[str]]:
         """
         Evaluate relevance of all retrieved documents.
+
+        Returns (list of relevance scores, list of reasoning strings).
         """
         scores = []
+        reasonings = []
         for chunk in chunks:
-            score = self.evaluate_relevance(query, chunk['content'])
+            score, reasoning = self.evaluate_relevance(query, chunk['content'])
             scores.append(score)
-        return scores
+            reasonings.append(reasoning)
+        return scores, reasonings
 
     # ══════════════════════════════════════════════════════════════════════════
     # STEP 3: DECISION MAKING
@@ -329,7 +351,7 @@ class CorrectiveRAG:
 
         # Step 2: Evaluate relevance
         print("\n[2/6] Evaluating document relevance...")
-        relevance_scores = self.evaluate_all_documents(question, chunks)
+        relevance_scores, reasonings = self.evaluate_all_documents(question, chunks)
         for i, (chunk, score) in enumerate(zip(chunks, relevance_scores)):
             source = chunk['metadata'].get('source', 'unknown').split('/')[-1]
             print(f"      Doc {i+1}: {source} - Relevance: {score:.2f}")
@@ -523,8 +545,10 @@ def run_demo():
             for i, (chunk, score) in enumerate(zip(result.initial_chunks, result.relevance_scores)):
                 source = chunk['metadata'].get('source', 'unknown').split('/')[-1]
                 bar = "█" * int(score * 10) + "░" * (10 - int(score * 10))
-                color = GREEN if score >= 0.7 else YELLOW if score >= 0.4 else RED
+                color = GREEN if score >= 0.7 else YELLOW if score >= 0.5 else RED
                 print(f"  {i+1}. [{bar}] {color}{score:.2f}{RESET} - {source}")
+                if result.relevance_reasonings:
+                     print(f"     {result.relevance_reasonings[i]}")
 
             # Web search
             if result.web_search_used:
